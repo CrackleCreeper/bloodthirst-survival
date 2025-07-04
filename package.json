@@ -1,0 +1,20 @@
+{
+  "name": "blame-the-weather",
+  "version": "1.0.0",
+  "description": "A chaotic multiplayer survival game powered by real-world APIs.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "live-server src",
+    "dev": "vite",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "easystarjs": "^0.4.4",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.19"
+  }
+}
