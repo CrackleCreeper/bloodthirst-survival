@@ -40,11 +40,15 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.chaseSpeed = 50;
         this.setDamping(true);
         this.setDrag(100);
+        this.setSize(config.x, config.y);
+        this.setOffset(22, 38);
 
         // Animations
         this.animPrefix = "vampire1"; // change based on type in future
         this.direction = "down";
         this.currentAnim = null;
+        this.animLockedUntil = 0;  // timestamp until which animation is locked
+
 
 
 
@@ -102,6 +106,15 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         } else if (Math.abs(vy) > 0) {
             this.direction = vy > 0 ? "down" : "up";
         }
+        if (this.scene.time.now < this.animLockedUntil) {
+            return; // Don't override animation
+        }
+
+        if (this.scene.time.now < (this.lastAttackTime || 0)) {
+            return; // Cooldown active
+        }
+
+
 
         // Play walk or idle animation
         if (moving) {
@@ -122,14 +135,19 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         return tiles.length === 0; // True if no blocking tiles
     }
 
-    playAnim(state) {
+    playAnim(state, lockDuration = 0) {
         const key = `${this.animPrefix}_${state}_${this.direction}`;
         if (this.anims.currentAnim?.key !== key) {
             this.anims.play(key, true);
             this.currentAnim = key;
+
+            // Optional: lock animation to prevent overrides
+            if (lockDuration > 0) {
+                this.animLockedUntil = this.scene.time.now + lockDuration;
+            }
         }
-        console.log(`Playing animation: ${key}`);
     }
+
 
 
     drawDebugLines(now, graphics, player) {
@@ -174,7 +192,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
                 if (distToTarget < 10) {
                     this.currentPathIndex++;
                     this.stepTimeout = now + 2000;
-                    
+
                 } else {
                     // Movement tracking for jiggle
                     // Movement tracking and jiggle handling

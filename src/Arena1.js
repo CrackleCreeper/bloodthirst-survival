@@ -7,6 +7,7 @@ import Enemy from "./Classes/Enemy";
 export class SceneMain extends Phaser.Scene {
     constructor() {
         super("SceneMain");
+        this.beingHit = false;
     }
 
     preload() {
@@ -63,6 +64,8 @@ export class SceneMain extends Phaser.Scene {
         overhead.setDepth(3);
         this.player.setDepth(2);
 
+        this.player.setSize(8, 4);
+
         this.debugGraphics = this.add.graphics().setDepth(10);
 
 
@@ -84,11 +87,13 @@ export class SceneMain extends Phaser.Scene {
         this.enemies = this.physics.add.group();
 
         spawnerObjects.forEach((spawnObj) => {
-        
+
             const enemy = new Enemy(this, spawnObj.x, spawnObj.y, "Vampire1", {
                 hp: 3,
                 speed: 50,
-                type: 'basic'
+                type: 'Vampire1',
+                x: 8,
+                y: 8
             });
 
             this.enemies.add(enemy);
@@ -147,35 +152,42 @@ export class SceneMain extends Phaser.Scene {
             repeat: -1
         });
 
+        this.anims.create({
+            key: "player-hurt-down",
+            frames: this.anims.generateFrameNumbers("main", { start: 15, end: 19 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: "player-hurt-up",
+            frames: this.anims.generateFrameNumbers("main", { start: 87, end: 91 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: "player-hurt-left",
+            frames: this.anims.generateFrameNumbers("main", { start: 159, end: 163 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.anims.create({
+            key: "player-hurt-right",
+            frames: this.anims.generateFrameNumbers("main", { start: 63, end: 67 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
         // Load animations
         this.loadAnimations(this);
 
 
         // Check if player is hit
-        this.physics.add.collider(this.player, this.enemies, (player, enemy) => {
-            
-            if (!player.invulnerable) {
-                player.hp--;
-                console.log("Player hit! HP:", player.hp);
-                enemy.playAnim("attack");
+        this.physics.add.collider(this.player, this.enemies);
 
-                player.invulnerable = true;
-                player.setTint(0xff0000);
 
-                // Reset after short delay
-                this.time.delayedCall(1000, () => {
-                    player.invulnerable = false;
-                    player.clearTint();
-                });
 
-                if (player.hp <= 0) {
-                    console.log("💀 Game Over");
-                    player.setVelocity(0, 0);
-                    player.setTint(0x000000);
-                    player.disableBody(true, true);
-                }
-            }
-        });
+
         // Create HP text
         this.hpText = this.add.text(10, 10, "HP: 5", {
             fontSize: "16px",
@@ -191,21 +203,32 @@ export class SceneMain extends Phaser.Scene {
         this.hpText.setText(`HP: ${this.player.hp}`);
 
         body.setVelocity(0);
-        if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-speed);
-            this.player.anims.play("walk-left", true);
-        } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(speed);
-            this.player.anims.play("walk-right", true);
-        } else if (this.cursors.up.isDown) {
-            this.player.setVelocityY(-speed);
-            this.player.anims.play("walk-up", true);
-        } else if (this.cursors.down.isDown) {
-            this.player.setVelocityY(speed);
-            this.player.anims.play("walk-down", true);
-        } else {
-            this.player.anims.stop();
-        }
+            if (this.cursors.left.isDown) {
+                this.player.setVelocityX(-speed);
+                if (!this.beingHit)
+                    this.player.anims.play("walk-left", true);
+                this.player.direction = "left";
+            } else if (this.cursors.right.isDown) {
+                this.player.setVelocityX(speed);
+                if (!this.beingHit)
+                    this.player.anims.play("walk-right", true);
+                this.player.direction = "right";
+            } else if (this.cursors.up.isDown) {
+                this.player.setVelocityY(-speed);
+                if (!this.beingHit)
+                    this.player.anims.play("walk-up", true);
+                this.player.direction = "up";
+            } else if (this.cursors.down.isDown) {
+                this.player.setVelocityY(speed);
+                if (!this.beingHit)
+                    this.player.anims.play("walk-down", true);
+                this.player.direction = "down";
+            }
+            else {  
+                this.player.setVelocity(0);
+                if (!this.beingHit)
+                    this.player.anims.stop();
+            }
 
         // DEBUG 
         // this.debugGraphics.clear();
@@ -216,11 +239,73 @@ export class SceneMain extends Phaser.Scene {
         //     enemy.drawDebugLines(now, this.debugGraphics, this.player);
         // });
 
+        // this.debugGraphics.clear();
+        // this.debugGraphics.lineStyle(1, 0xff0000);
+        // this.debugGraphics.strokeRectShape(this.player.getBounds());
+
+        // this.enemies.children.iterate((enemy) => {
+        //     this.debugGraphics.strokeRectShape(enemy.getBounds());
+        // });
+
+
         // Handle enemy wandering and chasing
         this.enemies.children.iterate((enemy) => {
             if (!enemy.active) return;
+
             enemy.update(this.time.now, this.player);
+
+            const distance = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y,
+                enemy.x, enemy.y
+            );
+
+            const inAttackRange = distance < 25;
+            const now = this.time.now;
+
+            if (inAttackRange && !enemy.hasHitPlayer && !this.player.invulnerable) {
+                enemy.hasHitPlayer = true;
+                enemy.playAnim("attack", 500);
+                this.beingHit = true;
+
+                this.time.delayedCall(400, () => {
+                    if (
+                        enemy.active && this.player.active &&
+                        Phaser.Geom.Intersects.RectangleToRectangle(
+                            this.player.getBounds(),
+                            enemy.getBounds()
+                        )
+                    ) {
+                        // Damage the player only once per attack cycle
+                        this.player.hp--;
+                        console.log("💢 Player hit! HP:", this.player.hp);
+
+                        this.player.invulnerable = true;
+
+                        // Hurt animation
+                        const dir = this.player.direction || "down";
+                        this.player.anims.stop();
+                        this.player.anims.play(`player-hurt-${dir}`, true);
+
+                        this.time.delayedCall(1000, () => {
+                            this.player.invulnerable = false;
+                            this.beingHit = false;
+                        });
+
+                        if (this.player.hp <= 0) {
+                            this.player.setVelocity(0, 0);
+                            this.player.disableBody(true, true);
+                            this.beingHit = false;
+                        }
+                    }
+                });
+
+                // Reset enemy hit tracker after attack cooldown
+                this.time.delayedCall(1000, () => {
+                    enemy.hasHitPlayer = false;
+                });
+            }
         });
+
     }
 
     loadAnimations(scene) {
