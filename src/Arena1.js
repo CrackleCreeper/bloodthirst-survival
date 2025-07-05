@@ -10,11 +10,19 @@ export class SceneMain extends Phaser.Scene {
     }
 
     preload() {
+        const color = "Red";
         // Load tileset images
         this.load.image("tileset", "assets/tileset_arranged.png"); // tileset_arranged
         this.load.image("objects", "assets/obstacles-and-objects.png");
-        this.load.spritesheet("main", 'assets/Sprite/Knight_10.png', { frameWidth: 32, frameHeight: 32 });
-        this.load.image("enemy", "assets/Sprite/temporary_enemy.png");
+        this.load.spritesheet("main", `assets/Sprite/Soldier-${color}.png`, { frameWidth: 32, frameHeight: 32 });
+
+
+        this.load.spritesheet("vampire1_walk", "assets/Sprite/Vampires1/Walk/Vampires1_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet("vampire1_run", "assets/Sprite/Vampires1/Run/Vampires1_Run_full.png", { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet("vampire1_idle", "assets/Sprite/Vampires1/Idle/Vampires1_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet("vampire1_attack", "assets/Sprite/Vampires1/Attack/Vampires1_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet("vampire1_death", "assets/Sprite/Vampires1/Death/Vampires1_Death_full.png", { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet("vampire1_hurt", "assets/Sprite/Vampires1/Hurt/Vampires1_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
 
 
         // Load Tiled map
@@ -34,6 +42,7 @@ export class SceneMain extends Phaser.Scene {
         const map = this.make.tilemap({ key: "map" });
         this.map = map;
 
+
         // Add tilesets (names must match those used in Tiled)
         const tilesetA = map.addTilesetImage("tileset_arranged", "tileset");
         const tilesetB = map.addTilesetImage("obstacles-and-objects", "objects");
@@ -45,7 +54,10 @@ export class SceneMain extends Phaser.Scene {
 
         this.player = this.physics.add.sprite(400, 200, 'main', 0).setSize(16, 10);
         this.player.setCollideWorldBounds(true);
+
+        this.cameras.main.setZoom(1.5);
         this.cameras.main.startFollow(this.player);
+
         background.setDepth(0);
         collisions.setDepth(1);
         overhead.setDepth(3);
@@ -72,7 +84,8 @@ export class SceneMain extends Phaser.Scene {
         this.enemies = this.physics.add.group();
 
         spawnerObjects.forEach((spawnObj) => {
-            const enemy = new Enemy(this, spawnObj.x, spawnObj.y, "enemy", {
+        
+            const enemy = new Enemy(this, spawnObj.x, spawnObj.y, "Vampire1", {
                 hp: 3,
                 speed: 50,
                 type: 'basic'
@@ -110,36 +123,41 @@ export class SceneMain extends Phaser.Scene {
 
         this.anims.create({
             key: "walk-down",
-            frames: this.anims.generateFrameNumbers("main", { start: 0, end: 4 }),
+            frames: this.anims.generateFrameNumbers("main", { start: 0, end: 3 }),
             frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "walk-up",
-            frames: this.anims.generateFrameNumbers("main", { start: 48, end: 52 }),
+            frames: this.anims.generateFrameNumbers("main", { start: 96, end: 99 }),
             frameRate: 10,
             repeat: -1
         });
 
         this.anims.create({
             key: "walk-left",
-            frames: this.anims.generateFrameNumbers("main", { start: 16, end: 20 }),
+            frames: this.anims.generateFrameNumbers("main", { start: 144, end: 147 }),
             frameRate: 10,
             repeat: -1
         });
         this.anims.create({
             key: "walk-right",
-            frames: this.anims.generateFrameNumbers("main", { start: 32, end: 36 }),
+            frames: this.anims.generateFrameNumbers("main", { start: 48, end: 51 }),
             frameRate: 10,
             repeat: -1
         });
 
+        // Load animations
+        this.loadAnimations(this);
+
 
         // Check if player is hit
         this.physics.add.collider(this.player, this.enemies, (player, enemy) => {
+            
             if (!player.invulnerable) {
                 player.hp--;
                 console.log("Player hit! HP:", player.hp);
+                enemy.playAnim("attack");
 
                 player.invulnerable = true;
                 player.setTint(0xff0000);
@@ -202,6 +220,137 @@ export class SceneMain extends Phaser.Scene {
         this.enemies.children.iterate((enemy) => {
             if (!enemy.active) return;
             enemy.update(this.time.now, this.player);
+        });
+    }
+
+    loadAnimations(scene) {
+        scene.anims.create({
+            key: "vampire1_walk_down",
+            frames: scene.anims.generateFrameNumbers("vampire1_walk", { start: 0, end: 5 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_walk_up",
+            frames: scene.anims.generateFrameNumbers("vampire1_walk", { start: 6, end: 11 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_walk_left",
+            frames: scene.anims.generateFrameNumbers("vampire1_walk", { start: 12, end: 17 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_walk_right",
+            frames: scene.anims.generateFrameNumbers("vampire1_walk", { start: 18, end: 23 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_run_down",
+            frames: scene.anims.generateFrameNumbers("vampire1_run", { start: 0, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_run_up",
+            frames: scene.anims.generateFrameNumbers("vampire1_run", { start: 8, end: 15 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_run_left",
+            frames: scene.anims.generateFrameNumbers("vampire1_run", { start: 16, end: 23 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_run_right",
+            frames: scene.anims.generateFrameNumbers("vampire1_run", { start: 24, end: 31 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_idle_down",
+            frames: scene.anims.generateFrameNumbers("vampire1_idle", { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_idle_up",
+            frames: scene.anims.generateFrameNumbers("vampire1_idle", { start: 4, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_idle_left",
+            frames: scene.anims.generateFrameNumbers("vampire1_idle", { start: 8, end: 11 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_idle_right",
+            frames: scene.anims.generateFrameNumbers("vampire1_idle", { start: 12, end: 15 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        scene.anims.create({
+            key: "vampire1_attack_down",
+            frames: scene.anims.generateFrameNumbers("vampire1_attack", { start: 0, end: 11 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_attack_up",
+            frames: scene.anims.generateFrameNumbers("vampire1_attack", { start: 12, end: 23 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_attack_left",
+            frames: scene.anims.generateFrameNumbers("vampire1_attack", { start: 24, end: 35 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_attack_right",
+            frames: scene.anims.generateFrameNumbers("vampire1_attack", { start: 36, end: 43 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        scene.anims.create({
+            key: "vampire1_death",
+            frames: scene.anims.generateFrameNumbers("vampire1_death", { start: 0, end: 10 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_hurt_down",
+            frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_hurt_up",
+            frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 4, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_hurt_left",
+            frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 8, end: 11 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: "vampire1_hurt_right",
+            frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 12, end: 15 }),
+            frameRate: 10,
+            repeat: -1
         });
     }
 }

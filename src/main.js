@@ -9,6 +9,12 @@ const config = {
   parent: "game-container",
   scene: [SceneMain],
   pixelArt: true,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 960,
+    height: 540
+  },
   physics: {
     default: "arcade",
     arcade: {

@@ -14,9 +14,13 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.speed = config.speed || 50;
         this.type = config.type || 'basic';
         this.map = scene.map;
+        this.type = config.type || "Vampire1";
         this.obstacles = scene.obstacles;
         this.enemies = scene.enemies;
         this.scene.physics = scene.physics;
+        this.setScale(0.7);
+        this.attackCooldown = 0;
+
 
 
         this.path = [];
@@ -34,6 +38,14 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.detectionRadius = 150;
         this.wanderSpeed = 20;
         this.chaseSpeed = 50;
+        this.setDamping(true);
+        this.setDrag(100);
+
+        // Animations
+        this.animPrefix = "vampire1"; // change based on type in future
+        this.direction = "down";
+        this.currentAnim = null;
+
 
 
         // Pathfinding stuff
@@ -52,7 +64,6 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         this.finder.setGrid(grid);
         this.finder.setAcceptableTiles([0]);
-        this.finder.enableDiagonals();
 
         // Physics
         this.setSize(14, 14);
@@ -66,17 +77,40 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
+        let typeOfAnim = "walk";
 
         if (dist < this.detectionRadius && this.hasLineOfSight()) {
             this.seesPlayer = true;
             this.lastSeen = now;
             this.chasePlayer(now, player, dist);
+            typeOfAnim = "run";
         } else if (this.seesPlayer && now - this.lastSeen < 2000) {
-            this.chasePlayer(now, player, dist); // "Memory"
+            this.chasePlayer(now, player, dist);
+            typeOfAnim = "run"; // "Memory"
         } else {
             this.seesPlayer = false;
             this.wander(now);
         }
+
+        const vx = this.body.velocity.x;
+        const vy = this.body.velocity.y;
+
+        // Determine direction
+        const moving = Math.abs(vx) > 2 || Math.abs(vy) > 2;
+        if (Math.abs(vx) > Math.abs(vy)) {
+            this.direction = vx > 0 ? "right" : "left";
+        } else if (Math.abs(vy) > 0) {
+            this.direction = vy > 0 ? "down" : "up";
+        }
+
+        // Play walk or idle animation
+        if (moving) {
+            this.playAnim(typeOfAnim);
+        } else {
+            this.playAnim("idle");
+        }
+
+
     }
 
     hasLineOfSight() {
@@ -88,7 +122,17 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         return tiles.length === 0; // True if no blocking tiles
     }
 
-    drawDebugLines(now, graphics, player){
+    playAnim(state) {
+        const key = `${this.animPrefix}_${state}_${this.direction}`;
+        if (this.anims.currentAnim?.key !== key) {
+            this.anims.play(key, true);
+            this.currentAnim = key;
+        }
+        console.log(`Playing animation: ${key}`);
+    }
+
+
+    drawDebugLines(now, graphics, player) {
         const hasLOS = this.hasLineOfSight();
         const timeSinceSeen = now - this.lastSeenPlayerTime;
         let color;
@@ -96,13 +140,13 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (hasLOS) {
             color = 0x00ff00; // green
         } else if (timeSinceSeen < 2000) {
-                        color = 0xffff00; // yellow (memory)
-                    } else {
-                        color = 0xff0000; // red
-                    }
+            color = 0xffff00; // yellow (memory)
+        } else {
+            color = 0xff0000; // red
+        }
 
-                    graphics.lineStyle(1, color, 0.5);
-                    graphics.strokeLineShape(new Phaser.Geom.Line(this.x, this.y, player.x, player.y));
+        graphics.lineStyle(1, color, 0.5);
+        graphics.strokeLineShape(new Phaser.Geom.Line(this.x, this.y, player.x, player.y));
     }
 
     chasePlayer(now, player, dist) {
@@ -130,6 +174,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
                 if (distToTarget < 10) {
                     this.currentPathIndex++;
                     this.stepTimeout = now + 2000;
+                    
                 } else {
                     // Movement tracking for jiggle
                     // Movement tracking and jiggle handling
