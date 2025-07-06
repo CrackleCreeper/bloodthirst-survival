@@ -3,8 +3,8 @@ import Phaser from "phaser";
 import EasyStar from "easystarjs";
 import Enemy from "./Classes/Enemy";
 
-const MELEE_RANGE = 34;
-const ENEMY_MELEE_RANGE = 24;
+const MELEE_RANGE = 37;
+const ENEMY_MELEE_RANGE = 20;
 
 export class SceneMain extends Phaser.Scene {
     constructor() {
@@ -17,7 +17,24 @@ export class SceneMain extends Phaser.Scene {
         // Load tileset images
         this.load.image("tileset", "assets/tileset_arranged.png"); // tileset_arranged
         this.load.image("objects", "assets/obstacles-and-objects.png");
-        this.load.spritesheet("main", `assets/Sprite/Soldier-${color}.png`, { frameWidth: 32, frameHeight: 32 });
+
+
+        this.load.spritesheet("main_run_up", `assets/Sprite/Main/RUN/run_up.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_run_down", `assets/Sprite/Main/RUN/run_down.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_run_left", `assets/Sprite/Main/RUN/run_left.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_run_right", `assets/Sprite/Main/RUN/run_right.png`, { frameWidth: 96, frameHeight: 80 });
+        // Load idle animations
+        this.load.spritesheet("main_idle_up", `assets/Sprite/Main/IDLE/idle_up.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_idle_down", `assets/Sprite/Main/IDLE/idle_down.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_idle_left", `assets/Sprite/Main/IDLE/idle_left.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_idle_right", `assets/Sprite/Main/IDLE/idle_right.png`, { frameWidth: 96, frameHeight: 80 });
+        // Load attack animations
+        this.load.spritesheet("main_attack_up", `assets/Sprite/Main/ATTACK/attack1_up.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_attack_down", `assets/Sprite/Main/ATTACK/attack1_down.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_attack_left", `assets/Sprite/Main/ATTACK/attack1_left.png`, { frameWidth: 96, frameHeight: 80 });
+        this.load.spritesheet("main_attack_right", `assets/Sprite/Main/ATTACK/attack1_right.png`, { frameWidth: 96, frameHeight: 80 });
+
+
 
 
         this.load.spritesheet("vampire1_walk", "assets/Sprite/Vampires1/Walk/Vampires1_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
@@ -57,7 +74,7 @@ export class SceneMain extends Phaser.Scene {
         const collisions = map.createLayer("Collisions", [tilesetA, tilesetB], 0, 0);
         const overhead = map.createLayer("Overhead", tilesetB, 0, 0);
 
-        this.player = this.physics.add.sprite(400, 200, 'main', 0).setSize(16, 10);
+        this.player = this.physics.add.sprite(400, 200, 'main_idle_down', 0).setScale(0.6);
         this.player.setCollideWorldBounds(true);
 
         this.cameras.main.setZoom(1.5);
@@ -134,81 +151,8 @@ export class SceneMain extends Phaser.Scene {
             right: Phaser.Input.Keyboard.KeyCodes.D
         });
 
-        this.anims.create({
-            key: "walk-down",
-            frames: this.anims.generateFrameNumbers("main", { start: 0, end: 3 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: "walk-up",
-            frames: this.anims.generateFrameNumbers("main", { start: 96, end: 99 }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: "walk-left",
-            frames: this.anims.generateFrameNumbers("main", { start: 144, end: 147 }),
-            frameRate: 10,
-            repeat: -1
-        });
-        this.anims.create({
-            key: "walk-right",
-            frames: this.anims.generateFrameNumbers("main", { start: 48, end: 51 }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.anims.create({
-            key: "player-hurt-down",
-            frames: this.anims.generateFrameNumbers("main", { start: 15, end: 19 }),
-            frameRate: 10,
-            repeat: 0
-        });
-
-        this.anims.create({
-            key: "player-hurt-up",
-            frames: this.anims.generateFrameNumbers("main", { start: 87, end: 91 }),
-            frameRate: 10,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "player-hurt-left",
-            frames: this.anims.generateFrameNumbers("main", { start: 159, end: 163 }),
-            frameRate: 10,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "player-hurt-right",
-            frames: this.anims.generateFrameNumbers("main", { start: 63, end: 67 }),
-            frameRate: 10,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "player-attack-down",
-            frames: this.anims.generateFrameNumbers("main", { start: 4, end: 7 }),
-            frameRate: 10,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "player-attack-up",
-            frames: this.anims.generateFrameNumbers("main", { start: 100, end: 103 }),
-            frameRate: 10,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "player-attack-left",
-            frames: this.anims.generateFrameNumbers("main", { start: 148, end: 151 }),
-            frameRate: 10,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "player-attack-right",
-            frames: this.anims.generateFrameNumbers("main", { start: 52, end: 55 }),
-            frameRate: 10,
-            repeat: 0
-        });
+        // Player animations
+        this.loadPlayerAnimations(this);
 
         // Load animations
         this.loadAnimations(this);
@@ -260,25 +204,24 @@ export class SceneMain extends Phaser.Scene {
         if (!this.player.isAttacking && this.time.now > (this.player.hurtUntil || 0)) {
             if (this.cursors.left.isDown) {
                 this.player.setVelocityX(-speed);
-
-                this.player.anims.play("walk-left", true);
+                this.player.anims.play("player-run-left", true);
                 this.player.direction = "left";
+
             } else if (this.cursors.right.isDown) {
                 this.player.setVelocityX(speed);
-
-                this.player.anims.play("walk-right", true);
+                this.player.anims.play("player-run-right", true);
                 this.player.direction = "right";
             } else if (this.cursors.up.isDown) {
                 this.player.setVelocityY(-speed);
-                this.player.anims.play("walk-up", true);
+                this.player.anims.play("player-run-up", true);
                 this.player.direction = "up";
             } else if (this.cursors.down.isDown) {
                 this.player.setVelocityY(speed);
-                this.player.anims.play("walk-down", true);
+                this.player.anims.play("player-run-down", true);
                 this.player.direction = "down";
             } else {
                 this.player.setVelocity(0);
-                this.player.anims.stop();
+                this.player.anims.play(`player-idle-${this.player.direction}`, true);
             }
         } else {
             // Optional safety: force player to stay still during attack
@@ -344,17 +287,21 @@ export class SceneMain extends Phaser.Scene {
                         // Hurt animation
                         const dir = this.player.direction || "down";
                         this.player.hurtUntil = this.time.now + 500; // 500ms hurt duration
-                        this.player.anims.play(`player-hurt-${dir}`, true);
+                        this.player.setTint(0xff0000); // Flash red
                         this.player.isAttacking = false;
                         this.canAttack = true;
-
+                        
+                        this.time.delayedCall(100, () => {
+                            this.player.clearTint();
+                        });
 
                         this.time.delayedCall(1000, () => {
                             this.player.invulnerable = false;
+                            
                             this.beingHit = false;
                         });
 
-                        
+
                         if (this.player.hp <= 0) {
                             this.player.setVelocity(0, 0);
                             this.player.disableBody(true, true);
@@ -526,5 +473,33 @@ export class SceneMain extends Phaser.Scene {
             frameRate: 10,
             repeat: 0
         });
+    }
+
+    loadPlayerAnimations(scene) {
+        const directions = ['up', 'down', 'left', 'right'];
+
+        for (const dir of directions) {
+            scene.anims.create({
+                key: `player-idle-${dir}`,
+                frames: scene.anims.generateFrameNumbers(`main_idle_${dir}`, { start: 0, end: 7 }),
+                frameRate: 6,
+                repeat: -1
+            });
+
+            scene.anims.create({
+                key: `player-run-${dir}`,
+                frames: scene.anims.generateFrameNumbers(`main_run_${dir}`, { start: 0, end: 7 }),
+                frameRate: 10,
+                repeat: -1
+            });
+
+            scene.anims.create({
+                key: `player-attack-${dir}`,
+                frames: scene.anims.generateFrameNumbers(`main_attack_${dir}`, { start: 0, end: 7 }),
+                frameRate: 10,
+                repeat: 0
+            });
+        }
+
     }
 }
