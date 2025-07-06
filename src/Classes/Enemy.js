@@ -42,6 +42,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.setDrag(100);
         this.setSize(config.x, config.y);
         this.setOffset(22, 38);
+        this.isDead = false;
+
 
         // Animations
         this.animPrefix = "vampire1"; // change based on type in future
@@ -77,6 +79,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     update(now, player) {
+        if (this.isDead) return;
         // You can override this in subclasses
         const dx = player.x - this.x;
         const dy = player.y - this.y;
@@ -107,8 +110,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         } else if (Math.abs(vy) > 0) {
             this.direction = vy > 0 ? "down" : "up";
         }
-        if (this.scene.time.now < this.animLockedUntil) {
-            return; // Don't override animation
+        if (!this.isDead && this.scene.time.now < this.animLockedUntil) {
+            return;
         }
 
         if (this.scene.time.now < (this.lastAttackTime || 0)) {
@@ -186,17 +189,25 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         });
 
         if (this.hp <= 0) {
+            this.anims.stop();
             this.die();
         }
     }
 
     die() {
+        if (!this.active) return; // at top of die()
+        if (this.isDead) return;
+        this.isDead = true;
+
         this.setVelocity(0);
+        this.anims.stop();
         this.anims.play("vampire1_death", false);
-        this.disableBody(false, false);
-        this.scene.time.delayedCall(800, () => {
-            this.destroy();
-        });
+        this.animLockedUntil = this.scene.time.now + 1000; // ~1s
+        const frameRate = 10; // ← adjust based on your animation
+        const totalFrames = 11; // frames 0 to 10
+        const duration = (totalFrames / frameRate) * 1000;
+        this.scene.time.delayedCall(duration, () => this.destroy());
+
     }
 
 
