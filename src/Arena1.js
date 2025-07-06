@@ -3,6 +3,8 @@ import Phaser from "phaser";
 import EasyStar from "easystarjs";
 import Enemy from "./Classes/Enemy";
 
+const MELEE_RANGE = 34;
+const ENEMY_MELEE_RANGE = 24;
 
 export class SceneMain extends Phaser.Scene {
     constructor() {
@@ -34,6 +36,8 @@ export class SceneMain extends Phaser.Scene {
             document.getElementById("game-container").style.display = "block";
             console.log("Game Starting...");
         });
+        this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
     }
 
     create() {
@@ -117,6 +121,10 @@ export class SceneMain extends Phaser.Scene {
 
 
         this.player.hp = 5;
+        this.canAttack = true;
+        this.player.isAttacking = false;
+
+
 
         // Input
         this.cursors = this.input.keyboard.addKeys({
@@ -156,26 +164,50 @@ export class SceneMain extends Phaser.Scene {
             key: "player-hurt-down",
             frames: this.anims.generateFrameNumbers("main", { start: 15, end: 19 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
 
         this.anims.create({
             key: "player-hurt-up",
             frames: this.anims.generateFrameNumbers("main", { start: 87, end: 91 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
         this.anims.create({
             key: "player-hurt-left",
             frames: this.anims.generateFrameNumbers("main", { start: 159, end: 163 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
         this.anims.create({
             key: "player-hurt-right",
             frames: this.anims.generateFrameNumbers("main", { start: 63, end: 67 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
+        });
+        this.anims.create({
+            key: "player-attack-down",
+            frames: this.anims.generateFrameNumbers("main", { start: 4, end: 7 }),
+            frameRate: 10,
+            repeat: 0
+        });
+        this.anims.create({
+            key: "player-attack-up",
+            frames: this.anims.generateFrameNumbers("main", { start: 100, end: 103 }),
+            frameRate: 10,
+            repeat: 0
+        });
+        this.anims.create({
+            key: "player-attack-left",
+            frames: this.anims.generateFrameNumbers("main", { start: 148, end: 151 }),
+            frameRate: 10,
+            repeat: 0
+        });
+        this.anims.create({
+            key: "player-attack-right",
+            frames: this.anims.generateFrameNumbers("main", { start: 52, end: 55 }),
+            frameRate: 10,
+            repeat: 0
         });
 
         // Load animations
@@ -202,33 +234,57 @@ export class SceneMain extends Phaser.Scene {
         const body = this.player.body;
         this.hpText.setText(`HP: ${this.player.hp}`);
 
+        if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !this.player.isAttacking) {
+            const dir = this.player.direction || "down";
+            this.player.setVelocity(0);
+            this.player.isAttacking = true;
+            this.canAttack = false;
+            this.player.anims.stop();
+            this.player.anims.play(`player-attack-${dir}`, true);
+
+            this.player.anims.chain(null);
+
+            this.time.delayedCall(400, () => {
+                this.player.isAttacking = false;
+                this.canAttack = true;
+            });
+
+
+            return; // prevent movement for this frame
+        }
+
+
+
+
         body.setVelocity(0);
+        if (!this.player.isAttacking && this.time.now > (this.player.hurtUntil || 0)) {
             if (this.cursors.left.isDown) {
                 this.player.setVelocityX(-speed);
-                if (!this.beingHit)
-                    this.player.anims.play("walk-left", true);
+
+                this.player.anims.play("walk-left", true);
                 this.player.direction = "left";
             } else if (this.cursors.right.isDown) {
                 this.player.setVelocityX(speed);
-                if (!this.beingHit)
-                    this.player.anims.play("walk-right", true);
+
+                this.player.anims.play("walk-right", true);
                 this.player.direction = "right";
             } else if (this.cursors.up.isDown) {
                 this.player.setVelocityY(-speed);
-                if (!this.beingHit)
-                    this.player.anims.play("walk-up", true);
+                this.player.anims.play("walk-up", true);
                 this.player.direction = "up";
             } else if (this.cursors.down.isDown) {
                 this.player.setVelocityY(speed);
-                if (!this.beingHit)
-                    this.player.anims.play("walk-down", true);
+                this.player.anims.play("walk-down", true);
                 this.player.direction = "down";
-            }
-            else {  
+            } else {
                 this.player.setVelocity(0);
-                if (!this.beingHit)
-                    this.player.anims.stop();
+                this.player.anims.stop();
             }
+        } else {
+            // Optional safety: force player to stay still during attack
+            this.player.setVelocity(0);
+        }
+
 
         // DEBUG 
         // this.debugGraphics.clear();
@@ -259,7 +315,11 @@ export class SceneMain extends Phaser.Scene {
                 enemy.x, enemy.y
             );
 
-            const inAttackRange = distance < 25;
+            if (distance < MELEE_RANGE && this.player.isAttacking) { // Adjust range as needed  
+                enemy.takeDamage(1); // 👈 call enemy method
+            }
+
+            const inAttackRange = distance < ENEMY_MELEE_RANGE;
             const now = this.time.now;
 
             if (inAttackRange && !enemy.hasHitPlayer && !this.player.invulnerable) {
@@ -283,20 +343,25 @@ export class SceneMain extends Phaser.Scene {
 
                         // Hurt animation
                         const dir = this.player.direction || "down";
-                        this.player.anims.stop();
+                        this.player.hurtUntil = this.time.now + 500; // 500ms hurt duration
                         this.player.anims.play(`player-hurt-${dir}`, true);
+                        this.player.isAttacking = false;
+                        this.canAttack = true;
+
 
                         this.time.delayedCall(1000, () => {
                             this.player.invulnerable = false;
                             this.beingHit = false;
                         });
 
+                        
                         if (this.player.hp <= 0) {
                             this.player.setVelocity(0, 0);
                             this.player.disableBody(true, true);
                             this.beingHit = false;
                         }
                     }
+                    this.beingHit = false;
                 });
 
                 // Reset enemy hit tracker after attack cooldown
@@ -305,6 +370,30 @@ export class SceneMain extends Phaser.Scene {
                 });
             }
         });
+
+        // Safety: prevent overlapping flags
+        if (this.player.isAttacking && this.player.anims.currentAnim?.key?.includes("attack") === false) {
+            this.player.isAttacking = false;
+        }
+        // Safety net: reset attack flags if animation was interrupted
+        if (
+            this.player.isAttacking &&
+            (!this.player.anims.isPlaying ||
+                !this.player.anims.currentAnim?.key.startsWith("player-attack"))
+        ) {
+            this.player.isAttacking = false;
+            this.canAttack = true;
+        }
+
+        // Cleanup if attack animation got interrupted
+        if (this.player.isAttacking) {
+            const current = this.player.anims.currentAnim?.key;
+            if (!current || !current.startsWith("player-attack")) {
+                this.player.isAttacking = false;
+                this.canAttack = true;
+                console.log("⛔ Attack interrupted, force reset flags");
+            }
+        }
 
     }
 
@@ -411,31 +500,31 @@ export class SceneMain extends Phaser.Scene {
             key: "vampire1_death",
             frames: scene.anims.generateFrameNumbers("vampire1_death", { start: 0, end: 10 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
         scene.anims.create({
             key: "vampire1_hurt_down",
             frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 0, end: 3 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
         scene.anims.create({
             key: "vampire1_hurt_up",
             frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 4, end: 7 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
         scene.anims.create({
             key: "vampire1_hurt_left",
             frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 8, end: 11 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
         scene.anims.create({
             key: "vampire1_hurt_right",
             frames: scene.anims.generateFrameNumbers("vampire1_hurt", { start: 12, end: 15 }),
             frameRate: 10,
-            repeat: -1
+            repeat: 0
         });
     }
 }

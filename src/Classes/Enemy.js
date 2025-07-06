@@ -100,7 +100,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const vy = this.body.velocity.y;
 
         // Determine direction
-        const moving = Math.abs(vx) > 2 || Math.abs(vy) > 2;
+        const moving = this.body.speed > 2;
+
         if (Math.abs(vx) > Math.abs(vy)) {
             this.direction = vx > 0 ? "right" : "left";
         } else if (Math.abs(vy) > 0) {
@@ -122,6 +123,10 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         } else {
             this.playAnim("idle");
         }
+        if (!moving && this.anims.currentAnim && this.anims.currentAnim.key.includes("walk")) {
+            this.playAnim("idle");
+        }
+
 
 
     }
@@ -166,6 +171,34 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         graphics.lineStyle(1, color, 0.5);
         graphics.strokeLineShape(new Phaser.Geom.Line(this.x, this.y, player.x, player.y));
     }
+
+    takeDamage(amount) {
+        if (this.isInvulnerable || !this.active) return;
+
+        this.hp -= amount;
+        this.isInvulnerable = true;
+
+        const dir = this.lastDirection || "down"; // or infer from player
+        this.playAnim("hurt", 500);
+
+        this.scene.time.delayedCall(1000, () => {
+            this.isInvulnerable = false;
+        });
+
+        if (this.hp <= 0) {
+            this.die();
+        }
+    }
+
+    die() {
+        this.setVelocity(0);
+        this.anims.play("vampire1_death", false);
+        this.disableBody(false, false);
+        this.scene.time.delayedCall(800, () => {
+            this.destroy();
+        });
+    }
+
 
     chasePlayer(now, player, dist) {
         // Insert your path-following logic here
