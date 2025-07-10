@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import EasyStar from "easystarjs";
 import Enemy from "./Classes/Enemy";
 
-const MELEE_RANGE = 37;
+const MELEE_RANGE = 45;
 const ENEMY_MELEE_RANGE = 20;
 
 export class SceneMain extends Phaser.Scene {
@@ -15,9 +15,12 @@ export class SceneMain extends Phaser.Scene {
     preload() {
         const color = "Red";
         // Load tileset images
-        this.load.image("tileset", "assets/tileset_arranged.png"); // tileset_arranged
-        this.load.image("objects", "assets/obstacles-and-objects.png");
-
+        this.load.image("tileset", "assets/Texture/TX Tileset Grass.png"); // tileset_arranged
+        this.load.image("objects", "assets/Texture/TX Tileset Wall.png");
+        this.load.image("structure", "assets/Texture/TX Struct.png");
+        this.load.image("plants", "assets/Texture/Extra/TX Plant with Shadow.png");
+        this.load.image("props", "assets/Texture/Extra/TX Props with Shadow.png");
+        this.load.image("concrete", "assets/Texture/TX Tileset Stone Ground.png");
 
         this.load.spritesheet("main_run_up", `assets/Sprite/Main/RUN/run_up.png`, { frameWidth: 96, frameHeight: 80 });
         this.load.spritesheet("main_run_down", `assets/Sprite/Main/RUN/run_down.png`, { frameWidth: 96, frameHeight: 80 });
@@ -46,7 +49,12 @@ export class SceneMain extends Phaser.Scene {
 
 
         // Load Tiled map
-        this.load.tilemapTiledJSON("map", "assets/arena1.json");
+        this.load.tilemapTiledJSON("map", "assets/Arena1_New.json");
+
+        this.load.once('complete', () => {
+            const json = this.cache.tilemap.get("map").data;
+            console.log("Embedded Tileset Names:", json.tilesets.map(t => t.name));
+        });
 
         this.input.keyboard.on("keydown-ENTER", () => {
             document.getElementById("overlay").style.display = "none";
@@ -62,28 +70,34 @@ export class SceneMain extends Phaser.Scene {
 
         // Create tilemap
         const map = this.make.tilemap({ key: "map" });
+        console.log("Tileset names:", map.tilesets.map(ts => ts.name));
+
         this.map = map;
-
-
         // Add tilesets (names must match those used in Tiled)
-        const tilesetA = map.addTilesetImage("tileset_arranged", "tileset");
-        const tilesetB = map.addTilesetImage("obstacles-and-objects", "objects");
+        const tilesetA = map.addTilesetImage("Grass", "tileset");
+        const tilesetB = map.addTilesetImage("Wall", "objects");
+        const tilesetC = map.addTilesetImage("Structure", "structure");
+        const tilesetD = map.addTilesetImage("Plants", "plants");
+        const tilesetE = map.addTilesetImage("Props", "props");
+        const tilesetF = map.addTilesetImage("Concrete", "concrete");
 
         // Create layers
-        const background = map.createLayer("Background", tilesetA, 0, 0);
-        const collisions = map.createLayer("Collisions", [tilesetA, tilesetB], 0, 0);
-        const overhead = map.createLayer("Overhead", tilesetB, 0, 0);
+        const background = map.createLayer("Background", [tilesetA, tilesetC, tilesetB, tilesetD, tilesetE, tilesetF], 0, 0);
+        const collisions = map.createLayer("Collisions", [tilesetA, tilesetC, tilesetB, tilesetD, tilesetE, tilesetF], 0, 0);
+        const shadows = map.createLayer("Shadows", [tilesetA, tilesetC, tilesetB, tilesetD, tilesetE, tilesetF], 0, 0);
+        const overhead = map.createLayer("Overhead", [tilesetA, tilesetC, tilesetB, tilesetD, tilesetE, tilesetF], 0, 0);
 
-        this.player = this.physics.add.sprite(400, 200, 'main_idle_down', 0).setScale(0.6);
+        this.player = this.physics.add.sprite(400, 200, 'main_idle_down', 0).setScale(1);
         this.player.setCollideWorldBounds(true);
 
-        this.cameras.main.setZoom(1.5);
+        this.cameras.main.setZoom(1.2);
         this.cameras.main.startFollow(this.player);
 
         background.setDepth(0);
-        collisions.setDepth(1);
-        overhead.setDepth(3);
-        this.player.setDepth(2);
+        collisions.setDepth(2);
+        shadows.setDepth(1);
+        overhead.setDepth(4);
+        this.player.setDepth(3);
 
         this.player.setSize(8, 4);
 
@@ -142,6 +156,8 @@ export class SceneMain extends Phaser.Scene {
         this.player.isAttacking = false;
 
 
+        // Camera settings
+        this.cameras.main.roundPixels = true;
 
         // Input
         this.cursors = this.input.keyboard.addKeys({
@@ -290,14 +306,14 @@ export class SceneMain extends Phaser.Scene {
                         this.player.setTint(0xff0000); // Flash red
                         this.player.isAttacking = false;
                         this.canAttack = true;
-                        
+
                         this.time.delayedCall(100, () => {
                             this.player.clearTint();
                         });
 
                         this.time.delayedCall(1000, () => {
                             this.player.invulnerable = false;
-                            
+
                             this.beingHit = false;
                         });
 

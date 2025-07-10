@@ -18,7 +18,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.obstacles = scene.obstacles;
         this.enemies = scene.enemies;
         this.scene.physics = scene.physics;
-        this.setScale(0.7);
+        this.setScale(1);
         this.attackCooldown = 0;
 
 
@@ -35,7 +35,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.nextWanderTime = 0;
         this.wanderTarget = null;
         this.lastSeenPlayerTime = 0;
-        this.detectionRadius = 150;
+        this.detectionRadius = 350;
         this.wanderSpeed = 20;
         this.chaseSpeed = 50;
         this.setDamping(true);
