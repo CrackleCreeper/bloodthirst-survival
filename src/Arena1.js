@@ -90,7 +90,7 @@ export class SceneMain extends Phaser.Scene {
         this.player = this.physics.add.sprite(400, 200, 'main_idle_down', 0).setScale(1);
         this.player.setCollideWorldBounds(true);
 
-        this.cameras.main.setZoom(1.2);
+        this.cameras.main.setZoom(1);
         this.cameras.main.startFollow(this.player);
 
         background.setDepth(0);
