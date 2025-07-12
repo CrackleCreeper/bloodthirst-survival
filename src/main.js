@@ -1,4 +1,4 @@
-import { SceneMain } from "./Arena1.js";
+import { Arena1 } from "./Arena1.js";
 
 
 const config = {
@@ -7,7 +7,7 @@ const config = {
   height: 480,
   backgroundColor: "#1a1a1a",
   parent: "game-container",
-  scene: [SceneMain],
+  scene: [Arena1],
   pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,
