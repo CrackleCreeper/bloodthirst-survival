@@ -40,7 +40,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.chaseSpeed = 50;
         this.setDamping(true);
         this.setDrag(100);
-        this.setSize(config.x, config.y);
+        this.setSize(config.x ?? 14, config.y ?? 14);
+
         this.setOffset(22, 38);
         this.isDead = false;
 

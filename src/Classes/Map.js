@@ -82,26 +82,24 @@ export class Map extends Phaser.Scene {
         this.easystar.setGrid(grid);
         this.easystar.setAcceptableTiles([0]);
         this.easystar.setIterationsPerCalculation(20);
+
+        this.spawnLoop = this.time.addEvent({
+            delay: 10 * 1000, // base delay, adjust dynamically later
+            loop: true,
+            callback: () => this.dynamicEnemySpawn()
+        });
+
         this.ready = true;
     }
 
     update() {
         if (!this.ready) return;
         if (this.player.slipping) return;
-        const baseSpeed = this.player.speed ?? 150;
-
-        // Apply rain slowdown
-        if (this.apiManager.getWeatherCode() >= 60 && this.apiManager.getWeatherCode() < 70) {
-            baseSpeed *= 0.8;  // rain
-        }
-
-        // Apply BTC multiplier
-        const speed = this.apiManager.getBtcSpeedMultiplier(baseSpeed);
+        if (!this.player.active || !this.player.body) return;
+        const speed = this.player.speed ?? 150;
 
         const body = this.player.body;
         this.hpText.setText(`HP: ${this.player.hp}`);
-        this.speedText.setText(`BTC Speed x${(speed / baseSpeed).toFixed(2)}`);
-
 
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !this.player.isAttacking) {
             const dir = this.player.direction || "down";
@@ -117,7 +115,7 @@ export class Map extends Phaser.Scene {
             return;
         }
 
-        body.setVelocity(0);
+        this.player.setVelocity(0);
         if (!this.player.isAttacking && this.time.now > (this.player.hurtUntil || 0)) {
             if (this.cursors.left.isDown) {
                 this.player.setVelocityX(-speed);
@@ -163,7 +161,11 @@ export class Map extends Phaser.Scene {
                         this.player.setTint(0xff0000);
                         this.time.delayedCall(100, () => this.player.clearTint());
                         this.time.delayedCall(1000, () => this.player.invulnerable = false);
-                        if (this.player.hp <= 0) this.player.disableBody(true, true);
+                        if (this.player.hp <= 0) {
+                            this.player.disableBody(true, true);
+                            this.player.destroy();
+                            this.spawnLoop.remove();
+                        }
                     }
                     this.beingHit = false;
                 });
@@ -232,6 +234,51 @@ export class Map extends Phaser.Scene {
             }
         });
     }
+
+    getRandomValidTile() {
+        const maxAttempts = 30;
+        let attempts = 0;
+        let tile = null;
+
+        while (attempts < maxAttempts) {
+            const tileX = Phaser.Math.Between(0, this.map.width - 1);
+            const tileY = Phaser.Math.Between(0, this.map.height - 1);
+            const collisionTile = this.layers.collisions.getTileAt(tileX, tileY);
+            const backgroundTile = this.layers.background.getTileAt(tileX, tileY);
+
+            if (
+                (!collisionTile || collisionTile.index === -1) && // no obstacle
+                backgroundTile && backgroundTile.index !== -1     // valid ground tile (not transparent)
+            ) {
+                tile = { x: this.map.tileToWorldX(tileX) + this.map.tileWidth / 2, y: this.map.tileToWorldY(tileY) + this.map.tileHeight / 2 };
+                break;
+            }
+
+            attempts++;
+        }
+
+        return tile;
+    }
+
+
+
+    dynamicEnemySpawn() {
+        const btcPrice = this.apiManager.getBitcoinPrice(); // you'll need to expose this in your ApiManager
+        const extraEnemies = Math.floor(btcPrice / 10000); // +1 enemy per $10k BTC
+
+        for (let i = 0; i < 1 + extraEnemies; i++) {
+            const { x, y } = this.getRandomValidTile();
+            const enemy = new Enemy(this, x, y, "Vampire1", {
+                hp: 3 + Math.floor(btcPrice / 20000), // stronger enemies if BTC high
+                speed: 50,
+                type: "Vampire1",
+                x: 8, y: 8
+            });
+            this.enemies.add(enemy);
+            this.physics.add.collider(enemy, this.layers.collisions);
+        }
+    }
+
 
     setupCamera() {
         this.cameras.main.setZoom(1.2);

@@ -106,11 +106,8 @@ export class ApiManager {
         return this.weatherData?.is_day === 1;
     }
 
-    // Example getter to use in game
-    getBtcSpeedMultiplier(baseSpeed = 50) {
-        if (!this.data.btcUSD) return baseSpeed;
-        const multiplier = Phaser.Math.Clamp(this.data.btcUSD / 70000, 0.5, 2);
-        return baseSpeed * multiplier;
+    getBitcoinPrice() {
+        return this.data.btcUSD;
     }
 
     getCurrentCatFact() {

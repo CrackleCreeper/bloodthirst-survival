@@ -10,7 +10,7 @@ export class WeatherEffectManager {
 
     apply() {
         let code = this.api.getWeatherCode();
-        code = 2;
+        code = 0;
         this.activeCode = code;
         console.log("Applying weather effect for code:", code);
 
@@ -68,7 +68,6 @@ export class WeatherEffectManager {
         const staticCloudKeys = ['cloud1', 'cloud2', 'cloud3', 'cloud4', 'cloud5'];
         const spacing = 100;
 
-        // ✅ Clean up previous clouds
         if (this.staticClouds) {
             this.staticClouds.forEach(cloud => cloud.destroy());
         }
@@ -82,7 +81,6 @@ export class WeatherEffectManager {
             this.scene.events.off('update', this.cloudUpdateListener);
         }
 
-        // ✅ Static Clouds - for background coverage
         for (let x = 0; x < mapWidth; x += spacing) {
             for (let y = 0; y < mapHeight; y += spacing) {
                 const offsetX = Phaser.Math.Between(-20, 20);

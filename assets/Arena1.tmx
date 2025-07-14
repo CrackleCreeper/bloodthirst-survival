@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="55" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="19">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="55" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="20">
  <tileset firstgid="1" source="../Grass.tsx"/>
  <tileset firstgid="65" source="../Wall.tsx"/>
  <tileset firstgid="321" source="../Structure.tsx"/>
@@ -122,23 +122,6 @@
 </data>
  </layer>
  <objectgroup id="3" name="Spawners">
-  <object id="1" x="160" y="477.333" width="482.667" height="437.333"/>
-  <object id="2" x="482.667" y="1040" width="408" height="134.667"/>
-  <object id="3" x="237.333" y="1106.67" width="224" height="125.333"/>
-  <object id="4" x="474.667" y="1190.67" width="393.333" height="129.333"/>
-  <object id="5" x="252" y="1553.33" width="676" height="124"/>
   <object id="6" x="61.3333" y="1580" width="153.333" height="93.3333"/>
-  <object id="7" x="1066.67" y="632" width="188" height="164"/>
-  <object id="8" x="1074.67" y="936" width="180" height="230.667"/>
-  <object id="9" x="836" y="316" width="189.333" height="122.667"/>
-  <object id="10" x="982.667" y="454.667" width="49.3333" height="440"/>
-  <object id="11" x="996" y="992" width="26.6667" height="513.333"/>
-  <object id="12" x="674.667" y="702.667" width="188" height="104"/>
-  <object id="13" x="697.333" y="160" width="201.333" height="100"/>
-  <object id="14" x="684" y="290.667" width="94.6667" height="345.333"/>
-  <object id="15" x="224" y="282.667" width="188" height="66.6667"/>
-  <object id="16" x="318.667" y="129.333" width="134.667" height="97.3333"/>
-  <object id="17" x="509.333" y="28" width="132" height="70.6667"/>
-  <object id="18" x="481.333" y="257.333" width="160" height="41.3333"/>
  </objectgroup>
 </map>
