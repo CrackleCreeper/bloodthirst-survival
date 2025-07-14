@@ -2,6 +2,9 @@
 import Phaser from "phaser";
 import EasyStar from "easystarjs";
 import Enemy from "./Enemy";
+import { ApiManager } from "./ApiManager";
+import { WeatherEffectManager } from './WeatherEffectManager';
+
 
 const MELEE_RANGE = 45;
 const ENEMY_MELEE_RANGE = 20;
@@ -11,6 +14,8 @@ export class Map extends Phaser.Scene {
         super({ key: config.key });
         this.mapKey = config.mapKey;
         this.tilesets = config.tilesets;
+        this.apiManager = new ApiManager(this);
+        this.ready = false;
     }
 
     preload() {
@@ -22,25 +27,45 @@ export class Map extends Phaser.Scene {
     }
 
 
-    create() {
+    async create() {
+
         const map = this.make.tilemap({ key: this.mapKey });
         this.map = map;
         this.easystar = new EasyStar.js();
         this.easystar.setIterationsPerCalculation(20);
         // Load tilesets
+        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0);
+        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0);
+        this.speedText = this.add.text(10, 30, "", { fontSize: "14px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
+        this.apiManager = new ApiManager(this);
+        this.weatherEffects = new WeatherEffectManager(this, this.apiManager);
+        await this.apiManager.init()
+        const label = this.apiManager.getWeatherCode() === 2 ? 'Cloudy' : 'Clear';
+        const temp = this.apiManager.getTemperature();
+        this.weatherText.setText(`Weather: ${label} ${temp}°C`);
+        this.weatherEffects.apply();
+
+
+        this.spawnPlayer();
+        this.setupInput();
 
         this.createLayers(map, tilesetObjs);
-        this.spawnPlayer();
+
         this.setupCamera();
         this.setupObstacles();
         this.spawnEnemies();
-        this.setupInput();
+
         this.loadPlayerAnimations(this);
         this.loadAnimations(this);
         this.physics.add.collider(this.player, this.enemies);
         this.physics.add.collider(this.player, this.layers.collisions);
-        this.hpText = this.add.text(10, 10, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0);
+
+        this.hpText.setDepth(999);
+        this.weatherText.setDepth(999);
+        this.speedText.setDepth(999);
+
+
 
         // Pathfinding setup
         const grid = [];
@@ -57,12 +82,25 @@ export class Map extends Phaser.Scene {
         this.easystar.setGrid(grid);
         this.easystar.setAcceptableTiles([0]);
         this.easystar.setIterationsPerCalculation(20);
+        this.ready = true;
     }
 
     update() {
-        const speed = 150;
+        if (!this.ready) return;
+        const baseSpeed = this.player.speed ?? 150;
+
+        // Apply rain slowdown
+        if (this.apiManager.getWeatherCode() >= 60 && this.apiManager.getWeatherCode() < 70) {
+            baseSpeed *= 0.8;  // rain
+        }
+
+        // Apply BTC multiplier
+        const speed = this.apiManager.getBtcSpeedMultiplier(baseSpeed);
+
         const body = this.player.body;
         this.hpText.setText(`HP: ${this.player.hp}`);
+        this.speedText.setText(`BTC Speed x${(speed / baseSpeed).toFixed(2)}`);
+
 
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !this.player.isAttacking) {
             const dir = this.player.direction || "down";
@@ -156,12 +194,18 @@ export class Map extends Phaser.Scene {
             overhead: map.createLayer("Overhead", tilesets, 0, 0)
         };
         this.layers.collisions.setCollisionByExclusion([-1]);
+        this.layers.background.setDepth(0);
+        this.layers.shadows.setDepth(1);
+        this.layers.collisions.setDepth(2);
+
+        this.layers.overhead.setDepth(4);
     }
 
     spawnPlayer() {
         this.player = this.physics.add.sprite(400, 200, 'main_idle_down').setScale(1);
         this.player.setCollideWorldBounds(true);
         this.player.setSize(8, 4);
+        this.player.setDepth(3);
     }
 
     spawnEnemies() {

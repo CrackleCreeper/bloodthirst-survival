@@ -28,6 +28,8 @@ export class Arena1 extends Map {
         this.load.image("props", "assets/Texture/Extra/TX Props with Shadow.png");
         this.load.image("concrete", "assets/Texture/TX Tileset Stone Ground.png");
 
+        this.load.image('vignette', 'assets/vignette.png');
+
         // Load all animation spritesheets (optional: move to base class if reused)
         this.input.keyboard.on("keydown-ENTER", () => {
             document.getElementById("overlay").style.display = "none";
