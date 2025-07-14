@@ -29,6 +29,16 @@ export class Arena1 extends Map {
         this.load.image("concrete", "assets/Texture/TX Tileset Stone Ground.png");
 
         this.load.image('vignette', 'assets/vignette.png');
+        this.load.image('rain', 'assets/rain.png');
+        this.load.image('snow', 'assets/snowflake.png');
+        this.load.image('lightning', 'assets/lightning_line3a7.png');
+        this.load.image('cloud1', 'assets/Cloud1.png');
+        this.load.image('cloud2', 'assets/Cloud2.png');
+        this.load.image('cloud3', 'assets/Cloud3.png');
+        this.load.image('cloud4', 'assets/Cloud4.png');
+        this.load.image('cloud5', 'assets/Cloud5.png');
+
+
 
         // Load all animation spritesheets (optional: move to base class if reused)
         this.input.keyboard.on("keydown-ENTER", () => {

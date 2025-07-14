@@ -39,12 +39,7 @@ export class Map extends Phaser.Scene {
         this.speedText = this.add.text(10, 30, "", { fontSize: "14px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
-        this.weatherEffects = new WeatherEffectManager(this, this.apiManager);
-        await this.apiManager.init()
-        const label = this.apiManager.getWeatherCode() === 2 ? 'Cloudy' : 'Clear';
-        const temp = this.apiManager.getTemperature();
-        this.weatherText.setText(`Weather: ${label} ${temp}°C`);
-        this.weatherEffects.apply();
+
 
 
         this.spawnPlayer();
@@ -55,7 +50,12 @@ export class Map extends Phaser.Scene {
         this.setupCamera();
         this.setupObstacles();
         this.spawnEnemies();
-
+        this.weatherEffects = new WeatherEffectManager(this, this.apiManager);
+        await this.apiManager.init()
+        const label = this.apiManager.getWeatherCode() === 2 ? 'Cloudy' : 'Clear';
+        const temp = this.apiManager.getTemperature();
+        this.weatherText.setText(`Weather: ${label} ${temp}°C`);
+        this.weatherEffects.apply();
         this.loadPlayerAnimations(this);
         this.loadAnimations(this);
         this.physics.add.collider(this.player, this.enemies);
@@ -87,6 +87,7 @@ export class Map extends Phaser.Scene {
 
     update() {
         if (!this.ready) return;
+        if (this.player.slipping) return;
         const baseSpeed = this.player.speed ?? 150;
 
         // Apply rain slowdown

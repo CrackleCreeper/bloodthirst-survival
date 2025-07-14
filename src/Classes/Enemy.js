@@ -80,59 +80,79 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     update(now, player) {
         if (this.isDead) return;
-        // You can override this in subclasses
+
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        let typeOfAnim = "walk";
 
+        // 🟢 ATTACK PRIORITY
+        if (dist < 20) {
+            this.setVelocity(0);
+            this.path = []; // clear path when in melee
+            this.currentPathIndex = 0;
+            this.checkAttack(now, player);
+
+            // Animation priority: attack
+            this.updateAttackAnimation();
+            return;
+        }
+
+        let animState = "idle";
+
+        // 🟡 CHASE PLAYER
         if (dist < this.detectionRadius && this.hasLineOfSight()) {
             this.seesPlayer = true;
             this.lastSeen = now;
             this.chasePlayer(now, player, dist);
-            typeOfAnim = "run";
-        } else if (this.seesPlayer && now - this.lastSeen < 2000) {
+            animState = "run";
+        }
+
+        // 🟠 MEMORY CHASE
+        else if (this.seesPlayer && now - this.lastSeen < 2000) {
             this.chasePlayer(now, player, dist);
-            typeOfAnim = "run"; // "Memory"
-        } else {
+            animState = "run";
+        }
+
+        // 🟤 WANDERING
+        else {
             this.seesPlayer = false;
             this.wander(now);
+            animState = "walk";
         }
+
+        this.updateMovementAnimation(animState);
+    }
+
+
+
+    updateAttackAnimation() {
+        if (this.scene.time.now < this.animLockedUntil) return;
+        this.playAnim("attack", 500);
+    }
+
+    updateMovementAnimation(animState) {
+        if (this.scene.time.now < this.animLockedUntil) return;
 
         const vx = this.body.velocity.x;
         const vy = this.body.velocity.y;
-
-        // Determine direction
         const moving = this.body.speed > 2;
 
+        // Direction
         if (Math.abs(vx) > Math.abs(vy)) {
             this.direction = vx > 0 ? "right" : "left";
         } else if (Math.abs(vy) > 0) {
             this.direction = vy > 0 ? "down" : "up";
         }
-        if (!this.isDead && this.scene.time.now < this.animLockedUntil) {
-            return;
-        }
 
-        if (this.scene.time.now < (this.lastAttackTime || 0)) {
-            return; // Cooldown active
-        }
-
-
-
-        // Play walk or idle animation
         if (moving) {
-            this.playAnim(typeOfAnim);
+            this.playAnim(animState); // "run" during chase, "walk" while wandering
         } else {
             this.playAnim("idle");
         }
-        if (!moving && this.anims.currentAnim && this.anims.currentAnim.key.includes("walk")) {
-            this.playAnim("idle");
-        }
-
-
-
     }
+
+
+
 
     hasLineOfSight() {
         const line = new Phaser.Geom.Line(this.x, this.y, this.scene.player.x, this.scene.player.y);
@@ -155,6 +175,27 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
             }
         }
     }
+
+    checkAttack(now, player) {
+        if (this.attackCooldown > now) return;
+
+        this.attackCooldown = now + 1000; // 1 second cooldown
+        this.setVelocity(0);
+        this.playAnim("attack", 500);
+
+        this.scene.time.delayedCall(500, () => {  // attack hit frame
+            if (!this.active || !player.active) return;
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
+            if (dist < 20 && !player.invulnerable) {
+                player.hp--;
+                player.setTint(0xff0000);
+                player.invulnerable = true;
+                this.scene.time.delayedCall(100, () => player.clearTint());
+                this.scene.time.delayedCall(1000, () => player.invulnerable = false);
+            }
+        });
+    }
+
 
 
 
@@ -212,6 +253,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
 
     chasePlayer(now, player, dist) {
+        if (dist < 20) {
+            this.path = [];
+            return;
+        }
+
         // Insert your path-following logic here
         const seesPlayer = dist < this.detectionRadius && this.hasLineOfSight();
         if (seesPlayer) {
