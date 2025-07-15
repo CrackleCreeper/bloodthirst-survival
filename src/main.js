@@ -1,6 +1,5 @@
 import { Arena1 } from "./Arena1.js";
 
-
 const config = {
   type: Phaser.AUTO,
   width: 800,

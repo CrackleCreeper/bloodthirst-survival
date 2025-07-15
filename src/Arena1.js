@@ -1,9 +1,9 @@
 import { Map } from "./Classes/Map"; // path to your base Map class
 
 export class Arena1 extends Map {
-    constructor() {
+    constructor(sceneKey = "Arena1") {
         super({
-            key: "Arena1",
+            key: "sceneKey",
             mapKey: "Arena1_New",
             tilesets: [
                 { name: "Grass", imageKey: "tileset", imagePath: "assets/Texture/TX Tileset Grass.png" },
@@ -18,6 +18,14 @@ export class Arena1 extends Map {
     }
 
     preload() {
+
+        // Clear previous map and tilesets
+        if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
+
+        this.tilesets.forEach(ts => {
+            if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
+        });
+
         // Load tilemap and tile images
         this.load.tilemapTiledJSON("Arena1_New", "assets/Arena1_New.json");
 

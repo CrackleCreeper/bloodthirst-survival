@@ -16,15 +16,34 @@ export class Map extends Phaser.Scene {
         this.tilesets = config.tilesets;
         this.apiManager = new ApiManager(this);
         this.ready = false;
+        this.started = false;
+        this.startKey = null;
+        this.levelComplete = false;
+
+
+
+
+
+        // Level and time
+        this.levelTime = 30; // 30 seconds survival time for level one.
+        this.elapsedTime = 0;
+        this.level = 1;
+
     }
 
     preload() {
+        if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
+        this.tilesets.forEach(ts => {
+            if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
+        });
+
         this.load.tilemapTiledJSON(this.mapKey, `assets/${this.mapKey}.json`);
         this.tilesets.forEach(ts => {
             this.load.image(ts.imageKey, ts.imagePath);
         });
         this.loadAnimationSpriteSheets();
     }
+
 
 
     async create() {
@@ -37,9 +56,11 @@ export class Map extends Phaser.Scene {
         this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0);
         this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0);
         this.speedText = this.add.text(10, 30, "", { fontSize: "14px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
+        this.timerText = this.add.text(100, 100, `Time: ${this.levelTime}`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
-
+        this.startKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
 
         this.spawnPlayer();
@@ -56,8 +77,11 @@ export class Map extends Phaser.Scene {
         const temp = this.apiManager.getTemperature();
         this.weatherText.setText(`Weather: ${label} ${temp}°C`);
         this.weatherEffects.apply();
-        this.loadPlayerAnimations(this);
-        this.loadAnimations(this);
+        if (!this.anims.exists('player-idle-up')) {
+            this.loadPlayerAnimations(this);
+            this.loadAnimations(this);
+        }
+
         this.physics.add.collider(this.player, this.enemies);
         this.physics.add.collider(this.player, this.layers.collisions);
 
@@ -93,7 +117,26 @@ export class Map extends Phaser.Scene {
     }
 
     update() {
+        if (this.levelComplete) return;
+        if (!this.started) {
+            if (Phaser.Input.Keyboard.JustDown(this.startKey)) {
+                console.log("Starting game logic...");
+                this.startGame();
+            }
+            return;
+        }
+
         if (!this.ready) return;
+        this.elapsedTime += this.game.loop.delta / 1000;
+        const remaining = Math.max(0, this.levelTime - Math.floor(this.elapsedTime));
+        this.timerText.setText(`Time: ${remaining}`);
+
+        if (remaining <= 0) {
+            this.nextLevel();
+            return; // skip rest of update during transition
+        }
+
+
         if (this.player.slipping) return;
         if (!this.player.active || !this.player.body) return;
 
@@ -171,6 +214,8 @@ export class Map extends Phaser.Scene {
                             this.player.disableBody(true, true);
                             this.player.destroy();
                             this.spawnLoop.remove();
+                            this.showGameOverScreen();
+
                         }
                     }
                     this.beingHit = false;
@@ -194,6 +239,24 @@ export class Map extends Phaser.Scene {
         this.load.spritesheet("vampire1_death", "assets/Sprite/Vampires1/Death/Vampires1_Death_full.png", { frameWidth: 64, frameHeight: 64 });
         this.load.spritesheet("vampire1_hurt", "assets/Sprite/Vampires1/Hurt/Vampires1_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
     }
+
+    startGame() {
+        if (this.enemies) this.enemies.clear(true, true);
+
+        this.started = true;
+        this.elapsedTime = 0;
+        this.level = 1;
+
+        if (this.spawnLoop) this.spawnLoop.remove();
+        this.spawnLoop = this.time.addEvent({
+            delay: 10000,
+            loop: true,
+            callback: () => this.dynamicEnemySpawn()
+        });
+        this.spawnEnemies();
+
+    }
+
 
     createLayers(map, tilesets) {
         this.layers = {
@@ -285,6 +348,104 @@ export class Map extends Phaser.Scene {
             this.physics.add.collider(enemy, this.layers.collisions);
         }
     }
+
+    nextLevel() {
+        this.elapsedTime = 0;
+        const nextLevelDelay = 8000; // milliseconds
+
+
+        // Kill enemies
+        this.enemies.children.iterate(enemy => {
+            enemy.die()
+        });
+
+        // Stop spawning
+        if (this.spawnLoop) this.spawnLoop.remove();
+        this.levelComplete = true;
+
+
+        // Show overlay
+        const levelText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            `LEVEL ${this.level} COMPLETE!\nNext Level starts in ${nextLevelDelay / 1000} seconds.`,
+            {
+                fontSize: '32px',
+                fill: '#ff0',
+                align: 'center',
+                wordWrap: { width: this.cameras.main.width * 0.8 }
+            }
+        )
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(999);
+
+
+
+        // Start next level after delay
+        this.time.delayedCall(nextLevelDelay, () => {
+            levelText.destroy();
+            this.startNextLevel();
+        });
+
+    }
+
+    startNextLevel() {
+        this.levelComplete = false;
+
+        this.elapsedTime = 0;
+        this.levelTime += 10;
+        this.level++;
+
+        this.spawnLoop = this.time.addEvent({
+            delay: Math.max(2000, 10000 - this.level * 1000),
+            loop: true,
+            callback: () => this.dynamicEnemySpawn()
+        });
+    }
+
+    showGameOverScreen() {
+        this.levelComplete = true; // Prevent further updates
+        if (this.spawnLoop) this.spawnLoop.remove();
+
+        const gameOverText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            `GAME OVER\nPress ENTER to Restart`,
+            {
+                fontSize: '48px',
+                fill: '#ff0000',
+                align: 'center',
+                wordWrap: { width: this.cameras.main.width * 0.8 }
+            }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+
+        this.input.keyboard.once('keydown-ENTER', () => {
+            location.reload(); // Reload the page to reset everything
+
+        });
+
+    }
+
+    cleanupScene() {
+        this.ready = false;
+        this.started = false;
+        this.levelComplete = false;
+
+        if (this.spawnLoop) this.spawnLoop.remove();
+        if (this.enemies) this.enemies.clear(true, true);
+        if (this.player) this.player.destroy();
+        if (this.map) {
+            this.map.destroy();
+            this.map = null;
+        }
+        if (this.layers) {
+            Object.values(this.layers).forEach(layer => layer.destroy());
+        }
+        if (this.weatherEffects) this.weatherEffects.destroy?.();
+        this.children.removeAll();  // removes all GameObjects
+    }
+
 
 
     setupCamera() {
