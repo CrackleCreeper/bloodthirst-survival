@@ -5,9 +5,15 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, texture, config = {}) {
         super(scene, x, y, texture);
 
+        // Physics
         this.scene = scene;
         scene.add.existing(this);
         scene.physics.add.existing(this);
+        this.body.setCollideWorldBounds(true);
+        this.body.setBounce(1);
+        this.body.setSize(config.x ?? 14, config.y ?? 14);
+        this.body.setOffset(0, 0);
+
 
         // Configurable attributes
         this.hp = config.hp || 3;
@@ -71,12 +77,6 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         this.finder.setGrid(grid);
         this.finder.setAcceptableTiles([0]);
-
-        // Physics
-        this.setSize(14, 14);
-        this.setOffset(0, 0);
-        this.setCollideWorldBounds(true);
-        this.setBounce(1);
     }
 
     update(now, player) {

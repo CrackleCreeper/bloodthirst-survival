@@ -96,6 +96,7 @@ export class Map extends Phaser.Scene {
         if (!this.ready) return;
         if (this.player.slipping) return;
         if (!this.player.active || !this.player.body) return;
+
         const speed = this.player.speed ?? 150;
 
         const body = this.player.body;
@@ -142,6 +143,8 @@ export class Map extends Phaser.Scene {
 
         this.enemies.children.iterate(enemy => {
             if (!enemy.active) return;
+            if (!enemy.body) return;
+
             enemy.update(this.time.now, this.player);
             const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
             if (distance < MELEE_RANGE && this.player.isAttacking) enemy.takeDamage(1);
@@ -159,6 +162,9 @@ export class Map extends Phaser.Scene {
                         this.player.hp--;
                         this.player.invulnerable = true;
                         this.player.setTint(0xff0000);
+                        const knockback = new Phaser.Math.Vector2(this.player.x - enemy.x, this.player.y - enemy.y).normalize().scale(200);
+                        this.player.body.velocity.add(knockback);
+
                         this.time.delayedCall(100, () => this.player.clearTint());
                         this.time.delayedCall(1000, () => this.player.invulnerable = false);
                         if (this.player.hp <= 0) {
@@ -207,6 +213,7 @@ export class Map extends Phaser.Scene {
     spawnPlayer() {
         this.player = this.physics.add.sprite(400, 200, 'main_idle_down').setScale(1);
         this.player.setCollideWorldBounds(true);
+        this.player.speed = 250;
         this.player.setSize(8, 4);
         this.player.setDepth(3);
     }
