@@ -7,7 +7,7 @@ import { WeatherEffectManager } from './WeatherEffectManager';
 
 
 const MELEE_RANGE = 45;
-const ENEMY_MELEE_RANGE = 20;
+const ENEMY_MELEE_RANGE = 32;
 
 export class Map extends Phaser.Scene {
     constructor(config) {

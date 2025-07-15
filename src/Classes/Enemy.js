@@ -50,6 +50,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         this.setOffset(22, 38);
         this.isDead = false;
+        this.isAttacking = false;
+
 
 
         // Animations
@@ -81,20 +83,24 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     update(now, player) {
         if (this.isDead) return;
+        if (this.isAttacking) {
+            this.setVelocity(0);
+            return;
+        }
 
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         // 🟢 ATTACK PRIORITY
-        if (dist < 20) {
+        console.log("Distance to player:", dist);
+
+        if (dist < 32) {
+            console.log("🟢 Enemy attacking player");
             this.setVelocity(0);
             this.path = []; // clear path when in melee
             this.currentPathIndex = 0;
             this.checkAttack(now, player);
-
-            // Animation priority: attack
-            this.updateAttackAnimation();
             return;
         }
 
@@ -124,20 +130,15 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.updateMovementAnimation(animState);
     }
 
-
-
-    updateAttackAnimation() {
-        if (this.scene.time.now < this.animLockedUntil) return;
-        this.playAnim("attack", 500);
-    }
-
     updateMovementAnimation(animState) {
+        if (this.isAttacking) return;
         if (this.scene.time.now < this.animLockedUntil) return;
+
+
 
         const vx = this.body.velocity.x;
         const vy = this.body.velocity.y;
         const moving = this.body.speed > 2;
-
         // Direction
         if (Math.abs(vx) > Math.abs(vy)) {
             this.direction = vx > 0 ? "right" : "left";
@@ -179,22 +180,31 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     checkAttack(now, player) {
         if (this.attackCooldown > now) return;
-
+        this.isAttacking = true;
         this.attackCooldown = now + 1000; // 1 second cooldown
         this.setVelocity(0);
+
+        this.animLockedUntil = this.scene.time.now + 500;
         this.playAnim("attack", 500);
 
         this.scene.time.delayedCall(500, () => {  // attack hit frame
             if (!this.active || !player.active) return;
+            this.animLockedUntil = 0;
             const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
-            if (dist < 20 && !player.invulnerable) {
+            if (dist < 32 && !player.invulnerable) {
                 player.hp--;
                 player.setTint(0xff0000);
                 player.invulnerable = true;
                 this.scene.time.delayedCall(100, () => player.clearTint());
                 this.scene.time.delayedCall(1000, () => player.invulnerable = false);
+
             }
+
         });
+        this.scene.time.delayedCall(1000, () => {
+            if (this.active) this.isAttacking = false;
+        });
+
     }
 
 
