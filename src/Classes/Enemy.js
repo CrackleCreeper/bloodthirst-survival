@@ -207,9 +207,6 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     }
 
-
-
-
     drawDebugLines(now, graphics, player) {
         const hasLOS = this.hasLineOfSight();
         const timeSinceSeen = now - this.lastSeenPlayerTime;
