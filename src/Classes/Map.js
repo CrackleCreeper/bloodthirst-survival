@@ -72,10 +72,8 @@ export class Map extends Phaser.Scene {
         this.setupObstacles();
         this.spawnEnemies();
         this.weatherEffects = new WeatherEffectManager(this, this.apiManager);
-        await this.apiManager.init()
-        const label = this.apiManager.getWeatherCode() === 2 ? 'Cloudy' : 'Clear';
-        const temp = this.apiManager.getTemperature();
-        this.weatherText.setText(`Weather: ${label} ${temp}°C`);
+        await this.apiManager.init();
+        this.weatherText.setText(`Weather: Loading...`);
         this.weatherEffects.apply();
         if (!this.anims.exists('player-idle-up')) {
             this.loadPlayerAnimations(this);
@@ -277,8 +275,24 @@ export class Map extends Phaser.Scene {
         this.player = this.physics.add.sprite(400, 200, 'main_idle_down').setScale(1);
         this.player.setCollideWorldBounds(true);
         this.player.speed = 250;
+        this.player.baseSpeed = 250; // Store base speed for weather effects
         this.player.setSize(8, 4);
         this.player.setDepth(3);
+
+        // Spawn immunity
+        this.player.invulnerable = true;
+        this.tweens.add({
+            targets: this.player,
+            alpha: 0,
+            ease: 'Linear',
+            duration: 200,
+            repeat: 14,
+            yoyo: true,
+            onComplete: () => {
+                this.player.alpha = 1;
+                this.player.invulnerable = false;
+            }
+        });
     }
 
     spawnEnemies() {
@@ -286,7 +300,7 @@ export class Map extends Phaser.Scene {
         this.enemies = this.physics.add.group();
         spawnerObjects.forEach(obj => {
             const enemy = new Enemy(this, obj.x, obj.y, "Vampire1", {
-                hp: 3, speed: 50, type: "Vampire1", x: 8, y: 8
+                hp: 1, speed: 50, type: "Vampire1", x: 8, y: 8
             });
             this.enemies.add(enemy);
             this.physics.add.collider(enemy, this.layers.collisions);
@@ -339,7 +353,7 @@ export class Map extends Phaser.Scene {
         for (let i = 0; i < 1 + extraEnemies; i++) {
             const { x, y } = this.getRandomValidTile();
             const enemy = new Enemy(this, x, y, "Vampire1", {
-                hp: 3 + Math.floor(btcPrice / 20000), // stronger enemies if BTC high
+                hp: 1, // stronger enemies if BTC high
                 speed: 50,
                 type: "Vampire1",
                 x: 8, y: 8

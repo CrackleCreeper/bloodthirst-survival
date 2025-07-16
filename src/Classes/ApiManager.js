@@ -79,15 +79,44 @@ export class ApiManager {
 
 
     async fetchWeather() {
+        const interestingLocations = [
+            { lat: 25.276987, lon: 55.296249 }, // Dubai - desert, hot
+            { lat: 60.1699, lon: 24.9384 },     // Helsinki - snow, fog
+            { lat: -33.8688, lon: 151.2093 },   // Sydney - coastal, thunderstorms
+            { lat: 64.9631, lon: -19.0208 },    // Iceland - snow, cold
+            { lat: 35.6895, lon: 139.6917 },    // Tokyo - rainy season
+            { lat: 19.0760, lon: 72.8777 },     // Mumbai - heavy monsoon
+            { lat: 51.5072, lon: -0.1276 },     // London - fog, rain
+            { lat: 40.7128, lon: -74.0060 },    // New York - varied seasons
+            { lat: -23.5505, lon: -46.6333 },   // São Paulo - tropical, warm
+            { lat: 55.7558, lon: 37.6173 },     // Moscow - cold winters
+            { lat: 37.7749, lon: -122.4194 },   // San Francisco - coastal fog
+            { lat: 1.3521, lon: 103.8198 },     // Singapore - humid, thunderstorms
+            { lat: -34.6037, lon: -58.3816 },   // Buenos Aires - temperate
+            { lat: 48.8566, lon: 2.3522 },      // Paris - mild, cloudy
+            { lat: 41.9028, lon: 12.4964 },     // Rome - Mediterranean
+            { lat: -1.2921, lon: 36.8219 },     // Nairobi - highland climate
+            { lat: 39.9042, lon: 116.4074 },    // Beijing - pollution haze, cold winters
+            { lat: 24.7136, lon: 46.6753 },     // Riyadh - desert, extreme heat
+            { lat: 35.6762, lon: 139.6503 },    // Tokyo (urban center)
+            { lat: 13.7563, lon: 100.5018 },    // Bangkok - hot, humid, thunderstorms
+        ];
+
+
+        const { lat, lon } = Phaser.Utils.Array.GetRandom(interestingLocations);
+        // -180 to +180
+
         try {
-            const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=13.0&longitude=77.625&current_weather=true");
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
             const data = await res.json();
             this.weatherData = data.current_weather;
+            console.log(`🌍 Random Weather (${lat}, ${lon}):`, this.weatherData);
         } catch (e) {
-            console.error("Failed to fetch weather:", e);
-            this.weatherData = { temperature: 25, windspeed: 0, weathercode: 0 }; // fallback
+            console.error("Failed to fetch random weather:", e);
+            this.weatherData = { temperature: 25, windspeed: 0, weathercode: 0 };
         }
     }
+
 
     getWeather() {
         return this.weatherData;

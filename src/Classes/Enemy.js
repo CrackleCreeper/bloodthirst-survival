@@ -92,11 +92,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const dy = player.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // 🟢 ATTACK PRIORITY
-        console.log("Distance to player:", dist);
-
         if (dist < 32) {
-            console.log("🟢 Enemy attacking player");
             this.setVelocity(0);
             this.path = []; // clear path when in melee
             this.currentPathIndex = 0;

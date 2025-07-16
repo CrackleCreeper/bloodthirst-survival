@@ -6,40 +6,163 @@ export class WeatherEffectManager {
         this.api = apiManager;
         this.activeCode = null;
         this.lastStrikeTime = 0;
+        this.roundCount = 1;
     }
 
     apply() {
+        let roundCount = this.roundCount;
         let code = this.api.getWeatherCode();
-        code = 0;
-        this.activeCode = code;
-        console.log("Applying weather effect for code:", code);
-
-        /**
-         * 0 = Clear → Buff enemy speed
-         * 1–3 = Cloudy → Vignette overlay
-         * 45–48 = Fog → Fog overlay + reduce enemy sight
-         * 51–67 = Drizzle/Rain → Player slips every few seconds
-         * 71–77 = Snow → Slow down both player and enemies
-         * 95–99 = Thunderstorm → Lightning strikes
-        */
-        if (code === 0) {
-            this.buffEnemySpeed(1.3);
-        } else if (code >= 1 && code <= 3) {
-            this.addCloudOverlay();
-        } else if (code >= 45 && code <= 48) {
-            this.addFogOverlay();
-            this.reduceEnemySight(0.5);
-        } else if (code >= 51 && code <= 67) {
-            this.enablePlayerSlips();
-            this.addRainParticles();
-        } else if (code >= 71 && code <= 77) {
-            this.slowEveryone(0.6);
-            this.addSnowParticles();
-        } else if (code >= 95 && code <= 99) {
-            this.addRainParticles();
-            this.scheduleLightningStrikes();
+        if (code >= 1 && code <= 3) {
+            // Soft reroll
+            for (let i = 0; i < 2; i++) {
+                this.api.fetchWeather();
+                const reroll = this.api.getWeatherCode();
+                if (reroll < 1 || reroll > 3) {
+                    code = reroll;
+                    break;
+                }
+            }
         }
+        if (roundCount % 5 === 0) {
+            code = Phaser.Math.RND.pick([0, 77, 99]); // Clear, Snow, Thunderstorm
+        }
+
+
+        const description = this.getWeatherDescription(code);
+        const gameplayEffect = this.getGameplayEffectText(code);
+
+        // Step 1: Show "Changing Weather..."
+        this.showWeatherChangeText();
+
+        // Step 2: Delay applying weather effects
+        this.scene.time.delayedCall(2000, () => {
+            this.reset();
+            this.activeCode = code;
+            console.log("Applying weather effect for code:", code);
+            this.roundCount++;
+            // Step 3: Show gameplay impact text
+            this.showGameplayEffectText(description, gameplayEffect);
+
+            // Apply actual effects
+            if (code >= 0 && code <= 2) this.buffEnemySpeed(1.3);
+            else if (code >= 3 && code <= 9) this.addCloudOverlay();
+            else if (code >= 40 && code <= 49) {
+                this.addFogOverlay();
+                this.reduceEnemySight(0.5);
+            }
+            else if (code >= 51 && code <= 67) {
+                this.enablePlayerSlips();
+                this.addRainParticles();
+            }
+            else if (code >= 71 && code <= 77) {
+                this.slowEveryone(0.6);
+                this.addSnowParticles();
+            }
+            else if ((code >= 95 && code <= 99) || code == 80) {
+                this.addRainParticles();
+                this.scheduleLightningStrikes();
+            }
+
+            // Update permanent corner text
+            this.scene.weatherText.setText(`Weather: ${description}`);
+        });
     }
+
+
+    reset() {
+        // Remove overlays
+        if (this.scene.fogOverlay) this.scene.fogOverlay.destroy();
+        if (this.rainEmitter) this.rainEmitter.stop();
+        if (this.snowEmitter) this.snowEmitter.stop();
+        if (this.lightningStrikeEvent) {
+            this.scene.time.removeEvent(this.lightningStrikeEvent);
+            this.lastStrikeTime = 0; // Reset last strike time
+        }
+        if (this.slippingEvent) {
+            this.scene.time.removeEvent(this.slippingEvent);
+            this.scene.player.slipping = false; // Reset player state
+        }
+
+        if (this.cloudUpdateListener) this.scene.events.off('update', this.cloudUpdateListener);
+        if (this.clouds) this.clouds.forEach(c => c.destroy());
+        if (this.staticClouds) this.staticClouds.forEach(c => c.destroy());
+
+        // Reset speeds back to normal
+        if (this.scene.player) this.scene.player.speed = this.scene.player.baseSpeed || 250;
+        this.scene.enemies.children.iterate(enemy => {
+            if (enemy.chaseSpeed && enemy.baseChaseSpeed) enemy.chaseSpeed = enemy.baseChaseSpeed;
+            if (enemy.wanderSpeed && enemy.baseWanderSpeed) enemy.wanderSpeed = enemy.baseWanderSpeed;
+            if (enemy.detectionRadius && enemy.baseDetectionRadius) enemy.detectionRadius = enemy.baseDetectionRadius;
+        });
+    }
+
+    showWeatherChangeText() {
+        const cam = this.scene.cameras.main;
+        const text = this.scene.add.text(cam.width - 50, 80, "Changing Weather...", {
+            fontSize: "20px",
+            fill: "#ffffff",
+            backgroundColor: "#000000aa",
+            padding: { left: 10, right: 10, top: 5, bottom: 5 }
+        })
+            .setOrigin(1, 0)
+            .setScrollFactor(0)
+            .setDepth(999);
+
+        // Fade out after 2 seconds
+        this.scene.tweens.add({
+            targets: text,
+            alpha: 0,
+            duration: 2000,
+            onComplete: () => text.destroy()
+        });
+    }
+
+
+    getWeatherDescription(code) {
+        if (code >= 0 && code <= 2) return "☀️ Clear Skies";
+        if (code >= 3 && code <= 9) return "☁️ Overcast";
+        if (code >= 40 && code <= 49) return "🌫️ Foggy";
+        if (code >= 51 && code <= 67) return "🌧️ Rainy";
+        if (code >= 71 && code <= 77) return "❄️ Snowy";
+        if (code === 80 || (code >= 95 && code <= 99)) return "🌩️ Thunderstorm";
+        return "❓ Unstable Weather";
+    }
+
+    getGameplayEffectText(code) {
+        if (code >= 0 && code <= 2) return "☀️ Enemies are quicker in clear weather!";
+        if (code >= 3 && code <= 9) return "☁️ Cloudy skies reduce visibility.";
+        if (code >= 40 && code <= 49) return "🌫️ Fog lowers enemy detection range.";
+        if (code >= 51 && code <= 67) return "🌧️ Rain makes you slip unpredictably!";
+        if (code >= 71 && code <= 77) return "❄️ Snow slows everyone down.";
+        if (code === 80 || (code >= 95 && code <= 99)) return "⚡ Lightning strikes at random!";
+        return "❓ Unknown effect";
+    }
+
+
+
+    showGameplayEffectText(description, effectText) {
+        const cam = this.scene.cameras.main;
+        const text = this.scene.add.text(cam.width - 80, 80, `${effectText}`, {
+            fontSize: "18px",
+            fill: "#ffffff",
+            backgroundColor: "#000000aa",
+            padding: { left: 10, right: 10, top: 5, bottom: 5 }
+        })
+            .setOrigin(1, 0)
+            .setScrollFactor(0)
+            .setDepth(999);
+
+        this.scene.tweens.add({
+            targets: text,
+            alpha: 0,
+            duration: 2000,
+            delay: 3000, // stays visible for 3 seconds
+            onComplete: () => text.destroy()
+        });
+    }
+
+
+
 
     buffEnemySpeed(multiplier) {
         this.scene.enemies.children.iterate(enemy => {
@@ -66,7 +189,7 @@ export class WeatherEffectManager {
         const mapHeight = this.scene.map.heightInPixels;
 
         const staticCloudKeys = ['cloud1', 'cloud2', 'cloud3', 'cloud4', 'cloud5'];
-        const spacing = 100;
+        const spacing = 130;
 
         if (this.staticClouds) {
             this.staticClouds.forEach(cloud => cloud.destroy());
@@ -194,7 +317,7 @@ export class WeatherEffectManager {
 
 
     enablePlayerSlips() {
-        this.scene.time.addEvent({
+        this.slippingEvent = this.scene.time.addEvent({
             delay: 5000,
             loop: true,
             callback: () => {
@@ -236,7 +359,7 @@ export class WeatherEffectManager {
 
 
     scheduleLightningStrikes() {
-        this.scene.time.addEvent({
+        this.lightningStrikeEvent = this.scene.time.addEvent({
             delay: 3000,
             loop: true,
             callback: () => this.strikeLightning()
