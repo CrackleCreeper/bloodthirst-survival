@@ -55,7 +55,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
 
         // Animations
-        this.animPrefix = "vampire1"; // change based on type in future
+        this.animPrefix = config.type.toLowerCase(); // change based on type in future
         this.direction = "down";
         this.currentAnim = null;
         this.animLockedUntil = 0;  // timestamp until which animation is locked
@@ -246,7 +246,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         this.setVelocity(0);
         this.anims.stop();
-        this.anims.play("vampire1_death", false);
+        this.anims.play(`${this.animPrefix}_death`, false);
         this.animLockedUntil = this.scene.time.now + 1000; // ~1s
         const frameRate = 10; // ← adjust based on your animation
         const totalFrames = 11; // frames 0 to 10
