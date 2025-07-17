@@ -115,7 +115,13 @@ export class Map extends Phaser.Scene {
     }
 
     update() {
-        if (this.levelComplete) return;
+        if (this.levelComplete) {
+            if (!this.player.isDead) {
+                this.player.setVelocity(0);
+                this.player.anims.play(`player-idle-${this.player.direction}`, true);
+            }
+            return;
+        }
         if (!this.started) {
             if (Phaser.Input.Keyboard.JustDown(this.startKey)) {
                 console.log("Starting game logic...");
@@ -209,6 +215,7 @@ export class Map extends Phaser.Scene {
                         this.time.delayedCall(100, () => this.player.clearTint());
                         this.time.delayedCall(1000, () => this.player.invulnerable = false);
                         if (this.player.hp <= 0) {
+                            this.player.isDead = true;
                             this.player.disableBody(true, true);
                             this.player.destroy();
                             this.spawnLoop.remove();
@@ -275,6 +282,21 @@ export class Map extends Phaser.Scene {
         });
         this.spawnEnemies();
 
+        // Spawn immunity
+        this.player.invulnerable = true;
+        this.tweens.add({
+            targets: this.player,
+            alpha: 0,
+            ease: 'Linear',
+            duration: 200,
+            repeat: 14,
+            yoyo: true,
+            onComplete: () => {
+                this.player.alpha = 1;
+                this.player.invulnerable = false;
+            }
+        });
+
     }
 
 
@@ -300,21 +322,9 @@ export class Map extends Phaser.Scene {
         this.player.baseSpeed = 250; // Store base speed for weather effects
         this.player.setSize(8, 4);
         this.player.setDepth(3);
+        this.player.isDead = false;
 
-        // Spawn immunity
-        this.player.invulnerable = true;
-        this.tweens.add({
-            targets: this.player,
-            alpha: 0,
-            ease: 'Linear',
-            duration: 200,
-            repeat: 14,
-            yoyo: true,
-            onComplete: () => {
-                this.player.alpha = 1;
-                this.player.invulnerable = false;
-            }
-        });
+
     }
 
     spawnEnemies() {
@@ -370,25 +380,66 @@ export class Map extends Phaser.Scene {
 
     dynamicEnemySpawn() {
         const btcPrice = this.apiManager.getBitcoinPrice();
-        const extraEnemies = Math.floor(btcPrice / 10000); // +1 enemy per $10k BTC
-
+        const extraEnemies = Math.floor(btcPrice / 10000);
         for (let i = 0; i < 1 + extraEnemies; i++) {
+            const type = this.getRandomEnemyType(this.level);
             const { x, y } = this.getRandomValidTile();
-            const enemy = new Enemy(this, x, y, "Vampire1", {
-                hp: 2, // stronger enemies if BTC high
-                speed: 50,
-                type: "Vampire1",
-                x: 8, y: 8
-            });
+            const enemy = new Enemy(this, x, y, type, this.getEnemyStats(type));
+
             this.enemies.add(enemy);
             this.physics.add.collider(enemy, this.layers.collisions);
         }
     }
 
+    weightedRandomChoice(choices) {
+        const total = choices.reduce((sum, c) => sum + c.chance, 0);
+        const rand = Phaser.Math.Between(0, total - 1);
+        let cumulative = 0;
+        for (const choice of choices) {
+            cumulative += choice.chance;
+            if (rand < cumulative) return choice.type;
+        }
+        return choices[0].type;
+    }
+
+    getEnemySpawnWeights(level) {
+        if (level <= 2) {
+            return { Vampire1: 100, Vampire2: 0, Vampire3: 0 };
+        } else if (level <= 4) {
+            return { Vampire1: 70, Vampire2: 20, Vampire3: 0 };
+        } else if (level <= 5) {
+            return { Vampire1: 40, Vampire2: 50, Vampire3: 10 };
+        } else if (level <= 6) {
+            return { Vampire1: 20, Vampire2: 50, Vampire3: 30 };
+        } else {
+            return { Vampire1: 10, Vampire2: 40, Vampire3: 50 };
+        }
+    }
+
+    getRandomEnemyType(level) {
+        const weights = this.getEnemySpawnWeights(level);
+        const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
+        let rnd = Phaser.Math.Between(1, totalWeight);
+        for (const [type, weight] of Object.entries(weights)) {
+            if (rnd <= weight) return type;
+            rnd -= weight;
+        }
+        return "Vampire1"; // fallback
+    }
+
+
+
+    getEnemyStats(type) {
+        switch (type) {
+            case "Vampire1": return { hp: 2, speed: 50, type: "Vampire1" };
+            case "Vampire2": return { hp: 1, speed: 100, type: "Vampire2" };
+            case "Vampire3": return { hp: 4, speed: 40, type: "Vampire3" };
+        }
+    }
+
     nextLevel() {
         this.elapsedTime = 0;
-        const nextLevelDelay = 8000; // milliseconds
-
+        const nextLevelDelay = 8000;
 
         // Kill enemies
         this.enemies.children.iterate(enemy => {
@@ -404,7 +455,7 @@ export class Map extends Phaser.Scene {
         const levelText = this.add.text(
             this.cameras.main.centerX,
             this.cameras.main.centerY,
-            `LEVEL ${this.level} COMPLETE!\nNext Level starts in ${nextLevelDelay / 1000} seconds.`,
+            `LEVEL ${this.level} COMPLETE!\nNext Level starts in a few seconds.`,
             {
                 fontSize: '32px',
                 fill: '#ff0',
@@ -441,7 +492,8 @@ export class Map extends Phaser.Scene {
     }
 
     showGameOverScreen() {
-        this.levelComplete = true; // Prevent further updates
+        // Prevent further updates
+        this.levelComplete = true;
         if (this.spawnLoop) this.spawnLoop.remove();
 
         const gameOverText = this.add.text(

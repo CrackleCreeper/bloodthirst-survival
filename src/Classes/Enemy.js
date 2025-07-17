@@ -43,7 +43,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.lastSeenPlayerTime = 0;
         this.detectionRadius = 350;
         this.wanderSpeed = 20;
-        this.chaseSpeed = 50;
+        this.chaseSpeed = config.speed || 50;
         this.setDamping(true);
         this.setDrag(100);
         this.setSize(config.x ?? 14, config.y ?? 14);
@@ -83,6 +83,9 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
     update(now, player) {
         if (this.isDead) return;
+        if (this.scene.player.isDead) {
+            this.playAnim("idle");
+        }
         if (this.isAttacking) {
             this.setVelocity(0);
             return;
