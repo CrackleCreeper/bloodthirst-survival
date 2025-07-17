@@ -1,5 +1,6 @@
 import EasyStar from "easystarjs";
 import Phaser from "phaser";
+import BloodCrystal from "./BloodCrystal";
 
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, texture, config = {}) {
@@ -255,6 +256,12 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const totalFrames = 11; // frames 0 to 10
         const duration = (totalFrames / frameRate) * 1000;
         this.scene.time.delayedCall(duration, () => this.destroy());
+
+        const crystal = new BloodCrystal(this.scene, this.x, this.y);
+        this.scene.crystals.add(crystal);
+        this.scene.physics.add.collider(crystal, this.scene.layers.collisions);
+
+        this.scene.physics.add.overlap(this.scene.player, this.scene.crystals, this.scene.collectCrystal, null, this.scene);
 
     }
 

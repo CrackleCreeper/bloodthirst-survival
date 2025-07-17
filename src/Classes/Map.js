@@ -56,7 +56,8 @@ export class Map extends Phaser.Scene {
         this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0);
         this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0);
         this.speedText = this.add.text(10, 30, "", { fontSize: "14px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
-        this.timerText = this.add.text(100, 100, `Time: ${this.levelTime}`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        this.currentLevelText = this.add.text(100, 140, `Level: ${this.level}`, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        this.timerText = this.add.text(100, 110, `Time Left: ${this.levelTime}`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
 
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
@@ -86,6 +87,9 @@ export class Map extends Phaser.Scene {
         this.hpText.setDepth(999);
         this.weatherText.setDepth(999);
         this.speedText.setDepth(999);
+
+        // Crystals
+        this.crystals = this.physics.add.group();
 
 
 
@@ -133,7 +137,7 @@ export class Map extends Phaser.Scene {
         if (!this.ready) return;
         this.elapsedTime += this.game.loop.delta / 1000;
         const remaining = Math.max(0, this.levelTime - Math.floor(this.elapsedTime));
-        this.timerText.setText(`Time: ${remaining}`);
+        this.timerText.setText(`Time Left: ${remaining}`);
 
         if (remaining <= 0) {
             this.nextLevel();
@@ -264,7 +268,8 @@ export class Map extends Phaser.Scene {
         this.load.spritesheet("vampire3_death", "assets/Sprite/Vampires3/Death/Vampires3_Death_full.png", { frameWidth: 64, frameHeight: 64 });
         this.load.spritesheet("vampire3_hurt", "assets/Sprite/Vampires3/Hurt/Vampires3_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
 
-
+        // Load blood crystal
+        this.load.spritesheet("blood_crystal", "assets/Items/BloodCrystal.png", { frameWidth: 256, frameHeight: 256 });
     }
 
     startGame() {
@@ -483,7 +488,7 @@ export class Map extends Phaser.Scene {
         this.elapsedTime = 0;
         this.levelTime += 10;
         this.level++;
-
+        this.currentLevelText.setText(`Level: ${this.level}`);
         this.spawnLoop = this.time.addEvent({
             delay: Math.max(2000, 10000 - this.level * 1000),
             loop: true,
@@ -555,6 +560,12 @@ export class Map extends Phaser.Scene {
         this.player.hp = 5;
         this.canAttack = true;
         this.player.isAttacking = false;
+    }
+
+    collectCrystal(player, crystal) {
+        crystal.destroy();
+        console.log("Collected a Blood Crystal!");
+        // Optional: add effects, score, health regen, etc
     }
 
     loadAnimations(scene) {
@@ -941,6 +952,15 @@ export class Map extends Phaser.Scene {
             frameRate: 10,
             repeat: 0
         });
+
+        // Crystals
+        scene.anims.create({
+            key: 'crystal_spin',
+            frames: this.anims.generateFrameNumbers('blood_crystal', { start: 0, end: 15 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
 
     }
 
