@@ -243,7 +243,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
-    die() {
+    die(spawnCrystal = true) {
         if (!this.active) return; // at top of die()
         if (this.isDead) return;
         this.isDead = true;
@@ -257,11 +257,14 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const duration = (totalFrames / frameRate) * 1000;
         this.scene.time.delayedCall(duration, () => this.destroy());
 
-        const crystal = new BloodCrystal(this.scene, this.x, this.y);
-        this.scene.crystals.add(crystal);
-        this.scene.physics.add.collider(crystal, this.scene.layers.collisions);
+        if (spawnCrystal) {
+            const crystal = new BloodCrystal(this.scene, this.x, this.y, this.type);
+            this.scene.crystals.add(crystal);
+            this.scene.physics.add.collider(crystal, this.scene.layers.collisions);
+            this.scene.physics.add.overlap(this.scene.player, this.scene.crystals, this.scene.collectCrystal, null, this.scene);
+        }
 
-        this.scene.physics.add.overlap(this.scene.player, this.scene.crystals, this.scene.collectCrystal, null, this.scene);
+
 
     }
 

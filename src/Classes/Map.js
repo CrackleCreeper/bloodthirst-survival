@@ -198,7 +198,8 @@ export class Map extends Phaser.Scene {
 
             enemy.update(this.time.now, this.player);
             const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-            if (distance < MELEE_RANGE && this.player.isAttacking) enemy.takeDamage(1);
+            if (distance < MELEE_RANGE && this.player.isAttacking) enemy.takeDamage(1 * (this.player.attackMultiplier || 1));
+
 
             const inAttackRange = distance < ENEMY_MELEE_RANGE;
             if (inAttackRange && !enemy.hasHitPlayer && !this.player.invulnerable) {
@@ -328,6 +329,7 @@ export class Map extends Phaser.Scene {
         this.player.setSize(8, 4);
         this.player.setDepth(3);
         this.player.isDead = false;
+        this.player.attackMultiplier = 1; // Default attack multiplier
 
 
     }
@@ -437,7 +439,7 @@ export class Map extends Phaser.Scene {
     getEnemyStats(type) {
         switch (type) {
             case "Vampire1": return { hp: 2, speed: 50, type: "Vampire1" };
-            case "Vampire2": return { hp: 1, speed: 100, type: "Vampire2" };
+            case "Vampire2": return { hp: 1, speed: 120, type: "Vampire2" };
             case "Vampire3": return { hp: 4, speed: 40, type: "Vampire3" };
         }
     }
@@ -448,7 +450,7 @@ export class Map extends Phaser.Scene {
 
         // Kill enemies
         this.enemies.children.iterate(enemy => {
-            enemy.die()
+            enemy.die(false)
         });
 
         // Stop spawning
@@ -564,9 +566,81 @@ export class Map extends Phaser.Scene {
 
     collectCrystal(player, crystal) {
         crystal.destroy();
-        console.log("Collected a Blood Crystal!");
-        // Optional: add effects, score, health regen, etc
+        console.log(`Collected ${crystal.shardType} shard`);
+
+        if (crystal.shardType === 'Vampire1') {
+            player.hp = Math.min(player.hp + 1, 5); // heal up to max 5 HP
+            this.hpText.setText(`HP: ${player.hp}`);
+            this.showFloatingText(player.x, player.y, '+1 HP', '#ff3333');
+        } else if (crystal.shardType === 'Vampire2') {
+            this.player.speed += 100;
+            // Change back the speed to normal after 5 seconds
+            this.time.delayedCall(10 * 1000, () => {
+                this.player.speed -= 100;
+            });
+            this.showFloatingText(player.x, player.y, 'Speed Up!', '#ff8800');
+        } else if (crystal.shardType === 'Vampire3') {
+            if (this.level <= 4) {
+                this.applyAttackBuff();
+                this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
+            } else {
+                this.triggerAoEBlast();
+                this.showFloatingText(player.x, player.y, 'Blast!', '#ff4444');
+            }
+        }
     }
+
+    applyAttackBuff() {
+        console.log('Attack buff applied');
+        this.player.attackMultiplier = 2;  // 2x damage
+        this.time.delayedCall(5000, () => {
+            this.player.attackMultiplier = 1;
+            console.log('Attack buff expired');
+        });
+
+        this.tweens.add({
+            targets: this.player,
+            tint: 0xff4444,
+            yoyo: true,
+            repeat: 9,
+            duration: 250
+        });
+    }
+
+    triggerAoEBlast() {
+        console.log('AoE blast triggered!');
+        const blastRadius = 100;
+        const player = this.player;
+
+        const circle = this.add.circle(player.x, player.y, blastRadius, 0xff3333, 0.3).setDepth(1000);
+        this.time.delayedCall(300, () => circle.destroy());
+
+        this.enemies.children.iterate(enemy => {
+            if (enemy.active) {
+                const distance = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
+                if (distance <= blastRadius) {
+                    enemy.takeDamage(3);
+                }
+            }
+        });
+    }
+
+    showFloatingText(x, y, text, color = '#ffffff') {
+        const txt = this.add.text(x, y - 20, text, {
+            font: '16px Arial',
+            fill: color
+        }).setDepth(999);
+
+        this.tweens.add({
+            targets: txt,
+            y: y - 60,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => txt.destroy()
+        });
+    }
+
+
 
     loadAnimations(scene) {
         scene.anims.create({
