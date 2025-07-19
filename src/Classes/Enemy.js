@@ -1,6 +1,7 @@
 import EasyStar from "easystarjs";
 import Phaser from "phaser";
 import BloodCrystal from "./BloodCrystal";
+import MysteryCrystal from "./MysteryCrystal";
 
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, texture, config = {}) {
@@ -12,8 +13,6 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         scene.physics.add.existing(this);
         this.body.setCollideWorldBounds(true);
         this.body.setBounce(1);
-        this.body.setSize(config.x ?? 14, config.y ?? 14);
-        this.body.setOffset(0, 0);
 
 
         // Configurable attributes
@@ -25,7 +24,6 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.obstacles = scene.obstacles;
         this.enemies = scene.enemies;
         this.scene.physics = scene.physics;
-        this.setScale(1);
         this.attackCooldown = 0;
 
 
@@ -47,9 +45,8 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.chaseSpeed = config.speed || 50;
         this.setDamping(true);
         this.setDrag(100);
-        this.setSize(config.x ?? 14, config.y ?? 14);
-
-        this.setOffset(22, 38);
+        this.setSize(this.width, this.height, true);
+        this.setOffset(14, 10);
         this.isDead = false;
         this.isAttacking = false;
 
@@ -256,13 +253,22 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const totalFrames = 11; // frames 0 to 10
         const duration = (totalFrames / frameRate) * 1000;
         this.scene.time.delayedCall(duration, () => this.destroy());
+        let isthereMysteryCrystal = false;
+        if (Phaser.Math.Between(1, 100) <= 15 && spawnCrystal) {  // 15% chance
+            isthereMysteryCrystal = true;
+            const mysteryCrystal = new MysteryCrystal(this.scene, this.x, this.y);
+            this.scene.mysteryCrystals.add(mysteryCrystal);
+            this.scene.physics.add.collider(mysteryCrystal, this.scene.layers.collisions);
+        }
 
-        if (spawnCrystal) {
+
+        if (spawnCrystal && !isthereMysteryCrystal) {
             const crystal = new BloodCrystal(this.scene, this.x, this.y, this.type);
             this.scene.crystals.add(crystal);
             this.scene.physics.add.collider(crystal, this.scene.layers.collisions);
             this.scene.physics.add.overlap(this.scene.player, this.scene.crystals, this.scene.collectCrystal, null, this.scene);
         }
+        isthereMysteryCrystal = false; // reset for next enemy
 
 
 

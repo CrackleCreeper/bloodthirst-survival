@@ -4,6 +4,7 @@ import EasyStar from "easystarjs";
 import Enemy from "./Enemy";
 import { ApiManager } from "./ApiManager";
 import { WeatherEffectManager } from './WeatherEffectManager';
+import MysteryCrystal from "./MysteryCrystal";
 
 
 const MELEE_RANGE = 45;
@@ -90,6 +91,8 @@ export class Map extends Phaser.Scene {
 
         // Crystals
         this.crystals = this.physics.add.group();
+        this.mysteryCrystals = this.physics.add.group();
+        this.physics.add.overlap(this.player, this.mysteryCrystals, this.collectMysteryCrystal, null, this);
 
 
 
@@ -114,6 +117,13 @@ export class Map extends Phaser.Scene {
             loop: true,
             callback: () => this.dynamicEnemySpawn()
         });
+
+        this.mysteryCrystalLoop = this.time.addEvent({
+            delay: 15000, // every 15 seconds or so
+            loop: true,
+            callback: () => this.spawnMysteryCrystal()
+        });
+        // this.physics.world.createDebugGraphic();
 
         this.ready = true;
     }
@@ -153,6 +163,15 @@ export class Map extends Phaser.Scene {
         const body = this.player.body;
         this.hpText.setText(`HP: ${this.player.hp}`);
 
+        const left = this.player.flippedControls ? this.cursors.right.isDown : this.cursors.left.isDown;
+        const right = this.player.flippedControls ? this.cursors.left.isDown : this.cursors.right.isDown;
+        const up = this.player.flippedControls ? this.cursors.down.isDown : this.cursors.up.isDown;
+        const down = this.player.flippedControls ? this.cursors.up.isDown : this.cursors.down.isDown;
+        if (this.player.frozen) {
+            this.player.setVelocity(0);
+            this.player.anims.play(`player-idle-${this.player.direction}`, true);
+            return;
+        }
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !this.player.isAttacking) {
             const dir = this.player.direction || "down";
             this.player.setVelocity(0);
@@ -169,19 +188,19 @@ export class Map extends Phaser.Scene {
 
         this.player.setVelocity(0);
         if (!this.player.isAttacking && this.time.now > (this.player.hurtUntil || 0)) {
-            if (this.cursors.left.isDown) {
+            if (left) {
                 this.player.setVelocityX(-speed);
                 this.player.anims.play("player-run-left", true);
                 this.player.direction = "left";
-            } else if (this.cursors.right.isDown) {
+            } else if (right) {
                 this.player.setVelocityX(speed);
                 this.player.anims.play("player-run-right", true);
                 this.player.direction = "right";
-            } else if (this.cursors.up.isDown) {
+            } else if (up) {
                 this.player.setVelocityY(-speed);
                 this.player.anims.play("player-run-up", true);
                 this.player.direction = "up";
-            } else if (this.cursors.down.isDown) {
+            } else if (down) {
                 this.player.setVelocityY(speed);
                 this.player.anims.play("player-run-down", true);
                 this.player.direction = "down";
@@ -326,11 +345,13 @@ export class Map extends Phaser.Scene {
         this.player.setCollideWorldBounds(true);
         this.player.speed = 250;
         this.player.baseSpeed = 250; // Store base speed for weather effects
-        this.player.setSize(8, 4);
+        this.player.setSize(20, 34);
+        this.player.setOffset(this.player.width / 2 - 10, this.player.height / 2 - 15);
         this.player.setDepth(3);
         this.player.isDead = false;
         this.player.attackMultiplier = 1; // Default attack multiplier
-
+        this.player.frozen = false;
+        this.player.flippedControls = false;
 
     }
 
@@ -528,6 +549,7 @@ export class Map extends Phaser.Scene {
         this.levelComplete = false;
 
         if (this.spawnLoop) this.spawnLoop.remove();
+        if (this.mysteryCrystalLoop) this.mysteryCrystalLoop.remove();
         if (this.enemies) this.enemies.clear(true, true);
         if (this.player) this.player.destroy();
         if (this.map) {
@@ -590,6 +612,92 @@ export class Map extends Phaser.Scene {
         }
     }
 
+    collectMysteryCrystal(player, crystal) {
+        console.log('Collected mystery crystal');
+        crystal.destroy();
+
+
+        const positiveEffects = ['massiveHeal', 'invincibility', 'speedFrenzy', 'multiAoE', 'clearEnemies'];
+        const negativeEffects = ['hpDrop', 'speedLoss', 'enemyWave', 'freezePlayer', 'flipControls'];
+
+        const isPositive = Phaser.Math.Between(0, 1) === 0;
+        const effect = isPositive
+            ? Phaser.Utils.Array.GetRandom(positiveEffects)
+            : Phaser.Utils.Array.GetRandom(negativeEffects);
+
+        console.log(`Mystery Effect: ${effect}`);
+
+        switch (effect) {
+            case 'massiveHeal':
+                this.player.hp = Math.min(5, this.player.hp + 3);
+                this.hpText.setText(`HP: ${this.player.hp}`);
+                break;
+
+            case 'invincibility':
+                this.player.invulnerable = true;
+                this.player.setTint(0xffff00);
+                this.time.delayedCall(7000, () => {
+                    this.player.invulnerable = false;
+                    this.player.clearTint();
+                });
+                break;
+
+            case 'speedFrenzy':
+                this.player.speed += 200;
+                this.player.setTint(0x00ffff);
+                this.time.delayedCall(7000, () => {
+                    this.player.speed -= 200;
+                    this.player.clearTint();
+                });
+                break;
+
+            case 'multiAoE':
+                for (let i = 0; i < 5; i++) {
+                    this.time.delayedCall(i * 1000, () => this.triggerAoE());
+                }
+                break;
+
+            case 'clearEnemies':
+                this.enemies.children.iterate(enemy => enemy?.die?.());
+                break;
+
+            case 'hpDrop':
+                this.player.hp = Math.max(0, this.player.hp - 2);
+                break;
+
+            case 'speedLoss':
+                this.player.speed = Math.max(50, this.player.speed - 100);
+                this.player.setTint(0xff0000);
+                this.time.delayedCall(7000, () => {
+                    this.player.speed += 100;
+                    this.player.clearTint();
+                });
+                break;
+
+            case 'enemyWave':
+                for (let i = 0; i < 5; i++) this.dynamicEnemySpawn();
+                break;
+
+            case 'freezethis.player':
+                this.player.setTint(0x9999ff);
+                this.player.frozen = true;
+                this.time.delayedCall(3000, () => {
+                    this.player.frozen = false;
+                    this.player.clearTint();
+                });
+                break;
+
+            case 'flipControls':
+                this.player.flippedControls = true;
+                this.player.setTint(0xff00ff);
+                this.time.delayedCall(7000, () => {
+                    this.player.flippedControls = false;
+                    this.player.clearTint();
+                });
+                break;
+        }
+    }
+
     applyAttackBuff() {
         console.log('Attack buff applied');
         this.player.attackMultiplier = 2;  // 2x damage
@@ -639,6 +747,15 @@ export class Map extends Phaser.Scene {
             onComplete: () => txt.destroy()
         });
     }
+
+    spawnMysteryCrystal() {
+        const pos = this.getRandomValidTile();
+        if (!pos) return;
+        const crystal = new MysteryCrystal(this, pos.x, pos.y);
+        this.mysteryCrystals.add(crystal);
+        this.physics.add.collider(crystal, this.layers.collisions);
+    }
+
 
 
 
