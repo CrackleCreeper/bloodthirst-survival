@@ -289,7 +289,9 @@ export class Map extends Phaser.Scene {
         this.load.spritesheet("vampire3_hurt", "assets/Sprite/Vampires3/Hurt/Vampires3_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
 
         // Load blood crystal
-        this.load.spritesheet("blood_crystal", "assets/Items/BloodCrystal.png", { frameWidth: 256, frameHeight: 256 });
+        this.load.spritesheet("blood_crystal", "assets/Items/BloodCrystal.png", { frameWidth: 384, frameHeight: 512 });
+        this.load.image('crystal', 'assets/Items/Crystal.png'); // Adjust the path as needed
+
     }
 
     startGame() {
@@ -626,14 +628,18 @@ export class Map extends Phaser.Scene {
             : Phaser.Utils.Array.GetRandom(negativeEffects);
 
         console.log(`Mystery Effect: ${effect}`);
+        let text = 'idk';
+
 
         switch (effect) {
             case 'massiveHeal':
+                text = 'Massive Heal!';
                 this.player.hp = Math.min(5, this.player.hp + 3);
                 this.hpText.setText(`HP: ${this.player.hp}`);
                 break;
 
             case 'invincibility':
+                text = 'Invincibility!';
                 this.player.invulnerable = true;
                 this.player.setTint(0xffff00);
                 this.time.delayedCall(7000, () => {
@@ -643,29 +649,35 @@ export class Map extends Phaser.Scene {
                 break;
 
             case 'speedFrenzy':
-                this.player.speed += 200;
+                text = 'Speed++'
+                this.player.speed = this.player.baseSpeed + 200;
                 this.player.setTint(0x00ffff);
                 this.time.delayedCall(7000, () => {
-                    this.player.speed -= 200;
+                    this.player.speed = this.player.baseSpeed;
                     this.player.clearTint();
                 });
                 break;
 
+
             case 'multiAoE':
+                text = 'AoE Blast!';
                 for (let i = 0; i < 5; i++) {
-                    this.time.delayedCall(i * 1000, () => this.triggerAoE());
+                    this.time.delayedCall(i * 1000, () => this.triggerAoEBlast());
                 }
                 break;
 
             case 'clearEnemies':
+                text = 'Enemies Cleared!';
                 this.enemies.children.iterate(enemy => enemy?.die?.());
                 break;
 
             case 'hpDrop':
+                text = 'HP -2';
                 this.player.hp = Math.max(0, this.player.hp - 2);
                 break;
 
             case 'speedLoss':
+                text = 'Speed--';
                 this.player.speed = Math.max(50, this.player.speed - 100);
                 this.player.setTint(0xff0000);
                 this.time.delayedCall(7000, () => {
@@ -675,10 +687,12 @@ export class Map extends Phaser.Scene {
                 break;
 
             case 'enemyWave':
+                text = 'Enemy Wave!';
                 for (let i = 0; i < 5; i++) this.dynamicEnemySpawn();
                 break;
 
-            case 'freezethis.player':
+            case 'freezePlayer':
+                text = 'Freeze';
                 this.player.setTint(0x9999ff);
                 this.player.frozen = true;
                 this.time.delayedCall(3000, () => {
@@ -688,6 +702,7 @@ export class Map extends Phaser.Scene {
                 break;
 
             case 'flipControls':
+                text = 'Controls Flipped!';
                 this.player.flippedControls = true;
                 this.player.setTint(0xff00ff);
                 this.time.delayedCall(7000, () => {
@@ -696,6 +711,7 @@ export class Map extends Phaser.Scene {
                 });
                 break;
         }
+        this.showFloatingText(this.player.x, this.player.y, text, isPositive ? '#00ff00' : '#ff0000');
     }
 
     applyAttackBuff() {
@@ -1147,8 +1163,8 @@ export class Map extends Phaser.Scene {
         // Crystals
         scene.anims.create({
             key: 'crystal_spin',
-            frames: this.anims.generateFrameNumbers('blood_crystal', { start: 0, end: 15 }),
-            frameRate: 10,
+            frames: this.anims.generateFrameNumbers('blood_crystal', { start: 0, end: 7 }),
+            frameRate: 1,
             repeat: -1
         });
 
