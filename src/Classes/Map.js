@@ -641,22 +641,44 @@ export class Map extends Phaser.Scene {
             case 'invincibility':
                 text = 'Invincibility!';
                 this.player.invulnerable = true;
-                this.player.setTint(0xffff00);
-                this.time.delayedCall(7000, () => {
-                    this.player.invulnerable = false;
-                    this.player.clearTint();
+                this.tweens.add({
+                    targets: this.player,
+                    alpha: 0,
+                    ease: 'Linear',
+                    duration: 200,
+                    repeat: 14,
+                    yoyo: true,
+                    onComplete: () => {
+                        this.player.alpha = 1;
+                        this.player.invulnerable = false;
+                    }
                 });
                 break;
 
             case 'speedFrenzy':
-                text = 'Speed++'
+                text = 'Speed++';
                 this.player.speed = this.player.baseSpeed + 200;
-                this.player.setTint(0x00ffff);
+
+                // Start cycling tint colors
+                const colors = [0x00ffff, 0xff00ff, 0xffff00, 0xff6600]; // cyan, magenta, yellow, orange
+                let colorIndex = 0;
+
+                const colorTween = this.time.addEvent({
+                    delay: 150, // change color every 150ms
+                    callback: () => {
+                        this.player.setTint(colors[colorIndex]);
+                        colorIndex = (colorIndex + 1) % colors.length;
+                    },
+                    loop: true
+                });
+
                 this.time.delayedCall(7000, () => {
                     this.player.speed = this.player.baseSpeed;
                     this.player.clearTint();
+                    colorTween.remove(); // stop the color cycling
                 });
                 break;
+
 
 
             case 'multiAoE':
@@ -679,12 +701,23 @@ export class Map extends Phaser.Scene {
             case 'speedLoss':
                 text = 'Speed--';
                 this.player.speed = Math.max(50, this.player.speed - 100);
-                this.player.setTint(0xff0000);
+
+                // Pulsating blue tint (fade between normal and blue)
+                const pulseTween = this.tweens.add({
+                    targets: this.player,
+                    duration: 500,
+                    repeat: -1,
+                    yoyo: true,
+                    tint: { from: 0xffffff, to: 0x3399ff }  // Light blue
+                });
+
                 this.time.delayedCall(7000, () => {
                     this.player.speed += 100;
                     this.player.clearTint();
+                    pulseTween.stop();
                 });
                 break;
+
 
             case 'enemyWave':
                 text = 'Enemy Wave!';
