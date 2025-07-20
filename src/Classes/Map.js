@@ -17,8 +17,6 @@ export class Map extends Phaser.Scene {
         this.tilesets = config.tilesets;
         this.apiManager = new ApiManager(this);
         this.ready = false;
-        this.started = false;
-        this.startKey = null;
         this.levelComplete = false;
 
 
@@ -62,7 +60,6 @@ export class Map extends Phaser.Scene {
 
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
-        this.startKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
 
         this.spawnPlayer();
@@ -82,7 +79,6 @@ export class Map extends Phaser.Scene {
             this.loadAnimations(this);
         }
 
-        this.physics.add.collider(this.player, this.enemies);
         this.physics.add.collider(this.player, this.layers.collisions);
 
         this.hpText.setDepth(999);
@@ -126,6 +122,22 @@ export class Map extends Phaser.Scene {
         // this.physics.world.createDebugGraphic();
 
         this.ready = true;
+        // this.startGame();
+        this.dynamicEnemySpawn();
+
+        this.player.invulnerable = true;
+        this.tweens.add({
+            targets: this.player,
+            alpha: 0,
+            ease: 'Linear',
+            duration: 200,
+            repeat: 14,
+            yoyo: true,
+            onComplete: () => {
+                this.player.alpha = 1;
+                this.player.invulnerable = false;
+            }
+        });
     }
 
     update() {
@@ -133,13 +145,6 @@ export class Map extends Phaser.Scene {
             if (!this.player.isDead) {
                 this.player.setVelocity(0);
                 this.player.anims.play(`player-idle-${this.player.direction}`, true);
-            }
-            return;
-        }
-        if (!this.started) {
-            if (Phaser.Input.Keyboard.JustDown(this.startKey)) {
-                console.log("Starting game logic...");
-                this.startGame();
             }
             return;
         }
@@ -294,37 +299,36 @@ export class Map extends Phaser.Scene {
 
     }
 
-    startGame() {
-        if (this.enemies) this.enemies.clear(true, true);
+    // startGame() {
+    //     if (this.enemies) this.enemies.clear(true, true);
 
-        this.started = true;
-        this.elapsedTime = 0;
-        this.level = 1;
+    //     this.elapsedTime = 0;
+    //     this.level = 1;
 
-        if (this.spawnLoop) this.spawnLoop.remove();
-        this.spawnLoop = this.time.addEvent({
-            delay: 10000,
-            loop: true,
-            callback: () => this.dynamicEnemySpawn()
-        });
-        this.spawnEnemies();
+    //     if (this.spawnLoop) this.spawnLoop.remove();
+    //     this.spawnLoop = this.time.addEvent({
+    //         delay: 10000,
+    //         loop: true,
+    //         callback: () => this.dynamicEnemySpawn()
+    //     });
+    //     this.spawnEnemies();
 
-        // Spawn immunity
-        this.player.invulnerable = true;
-        this.tweens.add({
-            targets: this.player,
-            alpha: 0,
-            ease: 'Linear',
-            duration: 200,
-            repeat: 14,
-            yoyo: true,
-            onComplete: () => {
-                this.player.alpha = 1;
-                this.player.invulnerable = false;
-            }
-        });
+    //     // Spawn immunity
+    //     this.player.invulnerable = true;
+    //     this.tweens.add({
+    //         targets: this.player,
+    //         alpha: 0,
+    //         ease: 'Linear',
+    //         duration: 200,
+    //         repeat: 14,
+    //         yoyo: true,
+    //         onComplete: () => {
+    //             this.player.alpha = 1;
+    //             this.player.invulnerable = false;
+    //         }
+    //     });
 
-    }
+    // }
 
 
     createLayers(map, tilesets) {
@@ -361,9 +365,10 @@ export class Map extends Phaser.Scene {
         const spawnerObjects = this.map.getObjectLayer("Spawners").objects;
         this.enemies = this.physics.add.group();
         spawnerObjects.forEach(obj => {
-            const enemy = new Enemy(this, obj.x, obj.y, "Vampire1", {
+            const enemy = new Enemy(this, obj.x, obj.y, "vampire1_idle", {
                 hp: 1, speed: 50, type: "Vampire1", x: 8, y: 8
             });
+            this.time.delayedCall(10, () => enemy.playAnim('idle'));
             this.enemies.add(enemy);
             this.physics.add.collider(enemy, this.layers.collisions);
         });
@@ -414,7 +419,7 @@ export class Map extends Phaser.Scene {
         for (let i = 0; i < 1 + extraEnemies; i++) {
             const type = this.getRandomEnemyType(this.level);
             const { x, y } = this.getRandomValidTile();
-            const enemy = new Enemy(this, x, y, type, this.getEnemyStats(type));
+            const enemy = new Enemy(this, x, y, `${type.toLowerCase()}_idle`, this.getEnemyStats(type));
 
             this.enemies.add(enemy);
             this.physics.add.collider(enemy, this.layers.collisions);
@@ -547,7 +552,6 @@ export class Map extends Phaser.Scene {
 
     cleanupScene() {
         this.ready = false;
-        this.started = false;
         this.levelComplete = false;
 
         if (this.spawnLoop) this.spawnLoop.remove();

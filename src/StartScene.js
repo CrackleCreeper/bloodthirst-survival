@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-export default class StartScene extends Phaser.Scene {
+export class StartScene extends Phaser.Scene {
     constructor() {
         super("StartScene");
     }
@@ -28,7 +28,7 @@ export default class StartScene extends Phaser.Scene {
         startText.on("pointerover", () => startText.setStyle({ fill: "#ff3333" }));
         startText.on("pointerout", () => startText.setStyle({ fill: "#ffffff" }));
         startText.on("pointerdown", () => {
-            this.scene.start("GameScene"); // replace with your main game scene name
+            this.scene.start("Arena1_New"); // replace with your main game scene name
         });
 
         // Optional: Credits / Controls

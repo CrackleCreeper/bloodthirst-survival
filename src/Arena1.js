@@ -3,7 +3,7 @@ import { Map } from "./Classes/Map"; // path to your base Map class
 export class Arena1 extends Map {
     constructor(sceneKey = "Arena1") {
         super({
-            key: "sceneKey",
+            key: "Arena1_New",
             mapKey: "Arena1_New",
             tilesets: [
                 { name: "Grass", imageKey: "tileset", imagePath: "assets/Texture/TX Tileset Grass.png" },
@@ -46,14 +46,6 @@ export class Arena1 extends Map {
         this.load.image('cloud4', 'assets/Cloud4.png');
         this.load.image('cloud5', 'assets/Cloud5.png');
 
-
-
-        // Load all animation spritesheets (optional: move to base class if reused)
-        this.input.keyboard.on("keydown-ENTER", () => {
-            document.getElementById("overlay").style.display = "none";
-            document.getElementById("game-container").style.display = "block";
-            console.log("Game Starting...");
-        });
         this.loadAnimationSpriteSheets();
     }
 

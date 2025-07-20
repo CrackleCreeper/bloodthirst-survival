@@ -28,3 +28,13 @@ const config = {
 
 const game = new Phaser.Game(config);
 game.scene.start("StartScene");
+
+// Handle Enter key to hide overlay and show game
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    document.getElementById("overlay").style.display = "none";
+    document.getElementById("game-container").style.display = "block";
+    // Optional: Start Arena1 directly if you skip StartScene
+    // game.scene.start("Arena1");
+  }
+});
