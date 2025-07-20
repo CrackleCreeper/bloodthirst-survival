@@ -119,7 +119,7 @@ export class Map extends Phaser.Scene {
         });
 
         this.mysteryCrystalLoop = this.time.addEvent({
-            delay: 15000, // every 15 seconds or so
+            delay: 50 * 1000, // every 15 seconds or so
             loop: true,
             callback: () => this.spawnMysteryCrystal()
         });
@@ -803,6 +803,18 @@ export class Map extends Phaser.Scene {
         const crystal = new MysteryCrystal(this, pos.x, pos.y);
         this.mysteryCrystals.add(crystal);
         this.physics.add.collider(crystal, this.layers.collisions);
+
+        const initialInterval = 50000; // Start at 50 seconds
+        const minInterval = 20000;     // Never faster than 20 seconds
+        const duration = 4 * 60 * 1000;       // 4 minutes to reach min
+        const elapsed = this.elapsedTime * 1000;
+
+        const nextDelay = Math.max(
+            minInterval,
+            initialInterval - ((initialInterval - minInterval) * (elapsed / duration))
+        );
+        this.mysteryCrystalLoop.delay = nextDelay; // Adjust the delay for next spawn
+
     }
 
 

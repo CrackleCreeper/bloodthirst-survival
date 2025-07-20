@@ -1,4 +1,5 @@
 import { Arena1 } from "./Arena1.js";
+import { StartScene } from "./StartScene.js";
 
 const config = {
   type: Phaser.AUTO,
@@ -6,7 +7,7 @@ const config = {
   height: 480,
   backgroundColor: "#1a1a1a",
   parent: "game-container",
-  scene: [Arena1],
+  scene: [StartScene, Arena1,],
   pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,
@@ -25,4 +26,5 @@ const config = {
 
 
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+game.scene.start("StartScene");
