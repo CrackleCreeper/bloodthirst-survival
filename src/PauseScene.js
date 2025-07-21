@@ -6,19 +6,15 @@ export class PauseScene extends Phaser.Scene {
     }
 
     preload() {
-        // Create a simple white pixel for particles and effects
         this.load.image('particle', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAFfcULOdwAAAABJRU5ErkJggg==');
     }
 
     create(data) {
         this.parentSceneKey = data.parent;
-        // Create semi-transparent dark overlay
         this.createOverlay();
 
-        // Add subtle floating particles
         this.createParticleSystem();
 
-        // Enhanced Pause Title
         const pauseText = this.add.text(this.scale.width / 2, this.scale.height / 4, "GAME PAUSED", {
             font: "bold 56px Arial",
             fill: "#ffaa00",
@@ -26,7 +22,6 @@ export class PauseScene extends Phaser.Scene {
             strokeThickness: 4
         }).setOrigin(0.5);
 
-        // Add glow effect to title
         const pauseGlow = this.add.text(this.scale.width / 2, this.scale.height / 4, "GAME PAUSED", {
             font: "bold 56px Arial",
             fill: "#ffaa00",
@@ -34,7 +29,6 @@ export class PauseScene extends Phaser.Scene {
         }).setOrigin(0.5);
         pauseGlow.setBlendMode(Phaser.BlendModes.ADD);
 
-        // Pulsing animation for title
         this.tweens.add({
             targets: [pauseText, pauseGlow],
             scaleX: 1.05,
@@ -45,7 +39,6 @@ export class PauseScene extends Phaser.Scene {
             ease: 'Sine.easeInOut'
         });
 
-        // Resume Button
         const resumeButton = this.createStyledButton(
             this.scale.width / 2,
             this.scale.height / 2 - 40,
@@ -54,7 +47,6 @@ export class PauseScene extends Phaser.Scene {
             () => this.resumeGame()
         );
 
-        // Settings Button
         const settingsButton = this.createStyledButton(
             this.scale.width / 2,
             this.scale.height / 2 + 20,
@@ -63,7 +55,6 @@ export class PauseScene extends Phaser.Scene {
             () => this.scene.start("SettingsScene")
         );
 
-        // Main Menu Button
         const mainMenuButton = this.createStyledButton(
             this.scale.width / 2,
             this.scale.height / 2 + 80,
@@ -72,7 +63,6 @@ export class PauseScene extends Phaser.Scene {
             () => this.goToMainMenu()
         );
 
-        // Quit Game Button
         const quitButton = this.createStyledButton(
             this.scale.width / 2,
             this.scale.height / 2 + 140,
@@ -81,10 +71,8 @@ export class PauseScene extends Phaser.Scene {
             () => this.quitGame()
         );
 
-        // Add floating particles for atmosphere
         this.createFloatingParticles();
 
-        // Controls reminder
         this.add.text(this.scale.width / 2, this.scale.height * 0.85, "Press ESC to Resume", {
             font: "18px Arial",
             fill: "#cccccc",
@@ -92,12 +80,10 @@ export class PauseScene extends Phaser.Scene {
             strokeThickness: 1
         }).setOrigin(0.5);
 
-        // Add ESC key listener
         this.input.keyboard.on('keydown-ESC', () => {
             this.resumeGame();
         });
 
-        // Add subtle screen pulse
         this.cameras.main.setAlpha(0.95);
         this.tweens.add({
             targets: this.cameras.main,
@@ -110,12 +96,10 @@ export class PauseScene extends Phaser.Scene {
     }
 
     createOverlay() {
-        // Create dark semi-transparent background
         const overlay = this.add.graphics();
         overlay.fillStyle(0x000000, 0.8);
         overlay.fillRect(0, 0, this.scale.width, this.scale.height);
 
-        // Add subtle gradient effect
         for (let i = 0; i < this.scale.height; i += 8) {
             const progress = i / this.scale.height;
             const alpha = 0.1 + (0.2 * Math.sin(progress * Math.PI));
@@ -125,7 +109,6 @@ export class PauseScene extends Phaser.Scene {
     }
 
     createParticleSystem() {
-        // Subtle floating particles
         const particles = this.add.particles(this.scale.width / 2, this.scale.height / 2, 'particle', {
             x: { min: 0, max: this.scale.width },
             y: { min: 0, max: this.scale.height },
@@ -145,14 +128,12 @@ export class PauseScene extends Phaser.Scene {
         const width = 200;
         const height = 44;
 
-        // Background
         const bg = this.add.graphics();
         bg.fillStyle(0x000000, 0.8);
         bg.fillRoundedRect(-width / 2, -height / 2, width, height, 22);
         bg.lineStyle(2, parseInt(color.replace('#', '0x')), 1);
         bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 22);
 
-        // Text
         const buttonText = this.add.text(0, 0, text, {
             font: "bold 20px Arial",
             fill: "#ffffff",
@@ -160,12 +141,10 @@ export class PauseScene extends Phaser.Scene {
             strokeThickness: 1
         }).setOrigin(0.5);
 
-        // Zone for click detection
         const zone = this.add.zone(0, 0, width, height).setInteractive();
 
         const button = this.add.container(x, y, [bg, buttonText, zone]);
 
-        // Hover effects
         zone.on("pointerover", () => {
             this.tweens.add({ targets: button, scaleX: 1.1, scaleY: 1.1, duration: 150 });
             buttonText.setStyle({ fill: color });
@@ -202,7 +181,6 @@ export class PauseScene extends Phaser.Scene {
 
 
     createFloatingParticles() {
-        // Add floating light particles for atmosphere
         for (let i = 0; i < 6; i++) {
             const particle = this.add.circle(
                 Phaser.Math.Between(0, this.scale.width),
@@ -232,18 +210,17 @@ export class PauseScene extends Phaser.Scene {
     }
 
     resumeGame() {
-        this.scene.resume(this.parentSceneKey); // resume game
-        this.scene.stop(); // close pause scene
+        this.scene.resume(this.parentSceneKey);
+        this.scene.stop();
     }
 
     goToMainMenu() {
         this.cameras.main.fadeOut(500, 0, 0, 0);
 
         this.cameras.main.once('camerafadeoutcomplete', () => {
-            this.scene.stop(this.parentSceneKey); // stop the parent scene
-            this.scene.stop('PauseScene'); // stop pause scene
+            this.scene.stop(this.parentSceneKey);
+            this.scene.stop('PauseScene');
 
-            // Make sure StartScene is active and on top
             if (this.scene.isSleeping('StartScene')) this.scene.wake('StartScene');
             if (!this.scene.isActive('StartScene')) this.scene.start('StartScene');
             else this.scene.bringToTop('StartScene');
@@ -257,10 +234,7 @@ export class PauseScene extends Phaser.Scene {
 
 
     quitGame() {
-        // Show confirmation or quit the game
-        // For web games, you might want to show a confirmation dialog
         if (confirm("Are you sure you want to quit the game?")) {
-            // Close the game or redirect to a different page
             window.close();
         }
     }
