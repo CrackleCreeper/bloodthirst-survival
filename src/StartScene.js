@@ -6,10 +6,11 @@ export class StartScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('particle', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAFfcULOdwAAAABJRU5ErkJggg==');
+        this.load.image('particle', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAADZHrRKAAAAD0lEQVR42mP8z8DwHwAEjQKAC19azgAAAABJRU5ErkJggg==');
     }
 
     create() {
+        this.cameras.main.fadeIn(1000, 0, 0, 0);
         this.createGradientBackground();
         this.createParticleSystem();
 
@@ -154,7 +155,8 @@ export class StartScene extends Phaser.Scene {
                 yoyo: true,
                 onComplete: () => {
                     if (this.scene.get(targetScene)) {
-                        this.scene.start(targetScene);
+                        this.cameras.main.fadeOut(500, 0, 0, 0);
+                        this.time.delayedCall(500, () => this.scene.start(targetScene));
                     } else {
                         console.warn(`Scene '${targetScene}' not found!`);
                     }

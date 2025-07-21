@@ -138,6 +138,22 @@ export class Map extends Phaser.Scene {
                 this.player.invulnerable = false;
             }
         });
+
+        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.pauseKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.pauseKey.on('down', () => {
+            if (this.scene.isActive('PauseScene')) {
+                // Resume game
+                this.scene.stop('PauseScene');
+                this.scene.resume(); // resumes itself
+            } else {
+                // Pause game
+                this.scene.launch('PauseScene', { parent: this.scene.key });
+                this.scene.pause(); // pauses itself
+            }
+        });
+
+
     }
 
     update() {
