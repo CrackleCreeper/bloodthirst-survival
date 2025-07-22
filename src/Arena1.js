@@ -20,33 +20,34 @@ export class Arena1 extends Map {
     preload() {
 
         // Clear previous map and tilesets
-        if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
+        // if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
 
-        this.tilesets.forEach(ts => {
-            if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
-        });
+        // this.tilesets.forEach(ts => {
+        //     if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
+        // });
 
-        // Load tilemap and tile images
-        this.load.tilemapTiledJSON("Arena1_New", "assets/Arena1_New.json");
+        // // Load tilemap and tile images
+        // this.load.tilemapTiledJSON("Arena1_New", "assets/Arena1_New.json");
 
-        this.load.image("tileset", "assets/Texture/TX Tileset Grass.png");
-        this.load.image("objects", "assets/Texture/TX Tileset Wall.png");
-        this.load.image("structure", "assets/Texture/TX Struct.png");
-        this.load.image("plants", "assets/Texture/Extra/TX Plant with Shadow.png");
-        this.load.image("props", "assets/Texture/Extra/TX Props with Shadow.png");
-        this.load.image("concrete", "assets/Texture/TX Tileset Stone Ground.png");
+        // this.load.image("tileset", "assets/Texture/TX Tileset Grass.png");
+        // this.load.image("objects", "assets/Texture/TX Tileset Wall.png");
+        // this.load.image("structure", "assets/Texture/TX Struct.png");
+        // this.load.image("plants", "assets/Texture/Extra/TX Plant with Shadow.png");
+        // this.load.image("props", "assets/Texture/Extra/TX Props with Shadow.png");
+        // this.load.image("concrete", "assets/Texture/TX Tileset Stone Ground.png");
 
-        this.load.image('vignette', 'assets/vignette.png');
-        this.load.image('rain', 'assets/rain.png');
-        this.load.image('snow', 'assets/snowflake.png');
-        this.load.image('lightning', 'assets/lightning_line3a7.png');
-        this.load.image('cloud1', 'assets/Cloud1.png');
-        this.load.image('cloud2', 'assets/Cloud2.png');
-        this.load.image('cloud3', 'assets/Cloud3.png');
-        this.load.image('cloud4', 'assets/Cloud4.png');
-        this.load.image('cloud5', 'assets/Cloud5.png');
+        // this.load.image('vignette', 'assets/vignette.png');
+        // this.load.image('rain', 'assets/rain.png');
+        // this.load.image('snow', 'assets/snowflake.png');
+        // this.load.image('lightning', 'assets/lightning_line3a7.png');
+        // this.load.image('cloud1', 'assets/Cloud1.png');
+        // this.load.image('cloud2', 'assets/Cloud2.png');
+        // this.load.image('cloud3', 'assets/Cloud3.png');
+        // this.load.image('cloud4', 'assets/Cloud4.png');
+        // this.load.image('cloud5', 'assets/Cloud5.png');
 
-        this.loadAnimationSpriteSheets();
+        // this.loadAnimationSpriteSheets();
+        // this.loadAudioFiles();
     }
 
     create() {

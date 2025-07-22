@@ -1,6 +1,7 @@
 import { Arena1 } from "./Arena1.js";
 import { StartScene } from "./StartScene.js";
 import { PauseScene } from "./PauseScene.js";
+import { LoadingScene } from "./LoadingScreen.js";
 
 const config = {
   type: Phaser.AUTO,
@@ -8,7 +9,7 @@ const config = {
   height: 480,
   backgroundColor: "#1a1a1a",
   parent: "game-container",
-  scene: [StartScene, Arena1, PauseScene],
+  scene: [StartScene, Arena1, PauseScene, LoadingScene],
   pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,

@@ -7,9 +7,16 @@ export class StartScene extends Phaser.Scene {
 
     preload() {
         this.load.image('particle', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAADZHrRKAAAAD0lEQVR42mP8z8DwHwAEjQKAC19azgAAAABJRU5ErkJggg==');
+
+        // Load audio
+        this.load.audio('background_music', 'assets/Audio/Menu_Background.mp3');
+        this.load.audio('button_click', 'assets/Audio/Button_Click.mp3');
+        this.load.audio('button_hover', 'assets/Audio/Button_Hover.mp3');
     }
 
     create() {
+        this.sound.stopAll();
+        this.sound.play('background_music', { loop: true, volume: 0.5 });
         this.cameras.main.fadeIn(1000, 0, 0, 0);
         this.createGradientBackground();
         this.createParticleSystem();
@@ -52,7 +59,7 @@ export class StartScene extends Phaser.Scene {
         });
 
         // Buttons
-        this.createStyledButton(this.scale.width / 2, buttonsStartY, "SINGLEPLAYER", "#ff3333", "Arena1_New");
+        this.createStyledButton(this.scale.width / 2, buttonsStartY, "SINGLEPLAYER", "#ff3333", "LoadingScene");
         this.createStyledButton(this.scale.width / 2, buttonsStartY + 80, "MULTIPLAYER", "#3366ff", "MultiplayerLobbyScene");
         this.createStyledButton(this.scale.width / 2, buttonsStartY + 160, "SETTINGS", "#ffaa00", "SettingsScene");
 
@@ -128,6 +135,7 @@ export class StartScene extends Phaser.Scene {
 
         zone.on('pointerover', () => {
             this.tweens.add({ targets: button, scaleX: 1.1, scaleY: 1.1, duration: 200 });
+            this.sound.play('button_hover');
             buttonText.setStyle({ fill: color });
             bg.clear();
             bg.fillStyle(parseInt(color.replace('#', '0x')), 0.2);
@@ -154,15 +162,20 @@ export class StartScene extends Phaser.Scene {
                 duration: 100,
                 yoyo: true,
                 onComplete: () => {
-                    if (this.scene.get(targetScene)) {
-                        this.cameras.main.fadeOut(500, 0, 0, 0);
-                        this.time.delayedCall(500, () => this.scene.start(targetScene));
-                    } else {
-                        console.warn(`Scene '${targetScene}' not found!`);
-                    }
+                    this.sound.play('button_click');
+                    this.time.delayedCall(600, () => {
+                        if (this.scene.get(targetScene)) {
+                            this.sound.stopAll();
+                            this.cameras.main.fadeOut(500, 0, 0, 0);
+                            this.time.delayedCall(500, () => this.scene.start(targetScene));
+                        } else {
+                            console.warn(`Scene '${targetScene}' not found!`);
+                        }
+                    });
                 }
             });
         });
+
 
     }
 

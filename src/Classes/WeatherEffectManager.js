@@ -5,13 +5,19 @@ export class WeatherEffectManager {
         this.scene = scene;
         this.api = apiManager;
         this.activeCode = null;
+        this.isRaining = false;
+        this.isSnowing = false;
         this.lastStrikeTime = 0;
         this.roundCount = 1;
     }
 
     apply() {
+        this.scene.sound.play('weather_change_alert', { volume: 0.3 });
+        this.isRaining = false;
+        this.isSnowing = false;
         let roundCount = this.roundCount;
         let code = this.api.getWeatherCode();
+        // code = 75; // Force a specific code for testing
         if (code >= 1 && code <= 3) {
             // Soft reroll
             for (let i = 0; i < 2; i++) {
@@ -44,6 +50,8 @@ export class WeatherEffectManager {
             this.showGameplayEffectText(description, gameplayEffect);
 
             // Apply actual effects
+            // Clear any existing sound that is playing
+            this.scene.sound.stopByKey('rain');
             if (code >= 0 && code <= 2) this.buffEnemySpeed(1.3);
             else if (code >= 3 && code <= 9) this.addCloudOverlay();
             else if (code >= 40 && code <= 49) {
@@ -51,14 +59,20 @@ export class WeatherEffectManager {
                 this.reduceEnemySight(0.5);
             }
             else if (code >= 51 && code <= 67) {
+                this.scene.sound.play('rain', { loop: true, volume: 0.1 });
+                this.isRaining = true;
                 this.enablePlayerSlips();
                 this.addRainParticles();
             }
             else if (code >= 71 && code <= 77) {
+                this.scene.sound.play('snow', { loop: true, volume: 1 });
+                this.isSnowing = true;
                 this.slowEveryone(0.6);
                 this.addSnowParticles();
             }
             else if ((code >= 95 && code <= 99) || code == 80) {
+                this.scene.sound.play('rain', { loop: true, volume: 0.1 });
+                this.isRaining = true;
                 this.addRainParticles();
                 this.scheduleLightningStrikes();
             }
@@ -369,7 +383,7 @@ export class WeatherEffectManager {
     strikeLightning() {
         const x = Phaser.Math.Between(0, this.scene.map.widthInPixels);
         const y = Phaser.Math.Between(0, this.scene.map.heightInPixels);
-
+        this.scene.sound.play('thunder', { volume: 0.3 });
         const lightning = this.scene.add.image(x, y, 'lightning')
             .setDepth(1000)
             .setScale(2)

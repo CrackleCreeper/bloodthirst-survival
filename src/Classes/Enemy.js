@@ -222,6 +222,9 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     }
 
     takeDamage(amount) {
+        if (this.hp - amount > 0) {
+            this.scene.sound.play('vampire_hurt', { volume: 0.9 });
+        }
         if (this.isInvulnerable || !this.active) return;
 
         this.hp -= amount;
@@ -247,31 +250,32 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
 
         this.setVelocity(0);
         this.anims.stop();
+        this.scene.sound.play('vampire_die', { volume: 0.3 });
         this.anims.play(`${this.animPrefix}_death`, false);
         this.animLockedUntil = this.scene.time.now + 1000; // ~1s
         const frameRate = 10; // ← adjust based on your animation
         const totalFrames = 11; // frames 0 to 10
         const duration = (totalFrames / frameRate) * 1000;
-        this.scene.time.delayedCall(duration, () => this.destroy());
-        let isthereMysteryCrystal = false;
-        if (Phaser.Math.Between(1, 100) <= 15 && spawnCrystal) {  // 15% chance
-            isthereMysteryCrystal = true;
-            const mysteryCrystal = new MysteryCrystal(this.scene, this.x, this.y);
-            this.scene.mysteryCrystals.add(mysteryCrystal);
-            this.scene.physics.add.collider(mysteryCrystal, this.scene.layers.collisions);
-        }
+        this.scene.time.delayedCall(duration, () => {
+
+            let isthereMysteryCrystal = false;
+            if (Phaser.Math.Between(1, 100) <= 15 && spawnCrystal) {  // 15% chance
+                isthereMysteryCrystal = true;
+                const mysteryCrystal = new MysteryCrystal(this.scene, this.x, this.y);
+                this.scene.mysteryCrystals.add(mysteryCrystal);
+                this.scene.physics.add.collider(mysteryCrystal, this.scene.layers.collisions);
+            }
 
 
-        if (spawnCrystal && !isthereMysteryCrystal) {
-            const crystal = new BloodCrystal(this.scene, this.x, this.y, this.type);
-            this.scene.crystals.add(crystal);
-            this.scene.physics.add.collider(crystal, this.scene.layers.collisions);
-            this.scene.physics.add.overlap(this.scene.player, this.scene.crystals, this.scene.collectCrystal, null, this.scene);
-        }
-        isthereMysteryCrystal = false; // reset for next enemy
-
-
-
+            if (spawnCrystal && !isthereMysteryCrystal) {
+                const crystal = new BloodCrystal(this.scene, this.x, this.y, this.type);
+                this.scene.crystals.add(crystal);
+                this.scene.physics.add.collider(crystal, this.scene.layers.collisions);
+                this.scene.physics.add.overlap(this.scene.player, this.scene.crystals, this.scene.collectCrystal, null, this.scene);
+            }
+            isthereMysteryCrystal = false; // reset for next enemy
+            this.destroy()
+        });
     }
 
 

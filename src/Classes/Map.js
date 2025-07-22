@@ -31,16 +31,17 @@ export class Map extends Phaser.Scene {
     }
 
     preload() {
-        if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
-        this.tilesets.forEach(ts => {
-            if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
-        });
+        // if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
+        // this.tilesets.forEach(ts => {
+        //     if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
+        // });
 
-        this.load.tilemapTiledJSON(this.mapKey, `assets/${this.mapKey}.json`);
-        this.tilesets.forEach(ts => {
-            this.load.image(ts.imageKey, ts.imagePath);
-        });
-        this.loadAnimationSpriteSheets();
+        // this.load.tilemapTiledJSON(this.mapKey, `assets/${this.mapKey}.json`);
+        // this.tilesets.forEach(ts => {
+        //     this.load.image(ts.imageKey, ts.imagePath);
+        // });
+        // this.loadAnimationSpriteSheets();
+        // this.loadAudioFiles();
     }
 
 
@@ -73,7 +74,11 @@ export class Map extends Phaser.Scene {
         this.weatherEffects = new WeatherEffectManager(this, this.apiManager);
         await this.apiManager.init();
         this.weatherText.setText(`Weather: Loading...`);
-        this.weatherEffects.apply();
+        this.time.delayedCall(1000, () => {
+            console.log("Audio keys loaded:", this.cache.audio.getKeys());
+
+            this.weatherEffects.apply();
+        });
         if (!this.anims.exists('player-idle-up')) {
             this.loadPlayerAnimations(this);
             this.loadAnimations(this);
@@ -194,11 +199,13 @@ export class Map extends Phaser.Scene {
             return;
         }
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !this.player.isAttacking) {
+            this.sound.play('player_attack', { volume: 0.5 });
             const dir = this.player.direction || "down";
             this.player.setVelocity(0);
             this.player.isAttacking = true;
             this.canAttack = false;
             this.player.anims.stop();
+
             this.player.anims.play(`player-attack-${dir}`, true);
             this.time.delayedCall(400, () => {
                 this.player.isAttacking = false;
@@ -208,29 +215,55 @@ export class Map extends Phaser.Scene {
         }
 
         this.player.setVelocity(0);
+        // Stop previous run sounds if direction changes
+        if (this.player.currentRunSound && !this.sound.get(this.player.currentRunSound)) {
+            this.player.currentRunSound = null;
+        }
+
         if (!this.player.isAttacking && this.time.now > (this.player.hurtUntil || 0)) {
-            if (left) {
-                this.player.setVelocityX(-speed);
-                this.player.anims.play("player-run-left", true);
-                this.player.direction = "left";
-            } else if (right) {
-                this.player.setVelocityX(speed);
-                this.player.anims.play("player-run-right", true);
-                this.player.direction = "right";
-            } else if (up) {
-                this.player.setVelocityY(-speed);
-                this.player.anims.play("player-run-up", true);
-                this.player.direction = "up";
-            } else if (down) {
-                this.player.setVelocityY(speed);
-                this.player.anims.play("player-run-down", true);
-                this.player.direction = "down";
+            if (left || right || up || down) {
+                if (!this.player.currentRunSound) {
+                    let runSound = this.weatherEffects.isRaining ? 'running_on_wet_grass' : 'running_on_grass';
+                    runSound = this.weatherEffects.isSnowing ? 'running_on_snow' : runSound;
+                    this.sound.play(runSound, { loop: true, volume: 0.5 });
+                    this.player.currentRunSound = runSound;
+                }
+
+                if (left) {
+                    this.player.setVelocityX(-speed);
+                    this.player.anims.play("player-run-left", true);
+                    this.player.direction = "left";
+                } else if (right) {
+                    this.player.setVelocityX(speed);
+                    this.player.anims.play("player-run-right", true);
+                    this.player.direction = "right";
+                } else if (up) {
+                    this.player.setVelocityY(-speed);
+                    this.player.anims.play("player-run-up", true);
+                    this.player.direction = "up";
+                } else if (down) {
+                    this.player.setVelocityY(speed);
+                    this.player.anims.play("player-run-down", true);
+                    this.player.direction = "down";
+                }
             } else {
+                this.player.setVelocity(0);
                 this.player.anims.play(`player-idle-${this.player.direction}`, true);
+
+                // ✅ Stop sound when idle
+                if (this.player.currentRunSound) {
+                    this.sound.stopByKey(this.player.currentRunSound);
+                    this.player.currentRunSound = null;
+                }
             }
         } else {
             this.player.setVelocity(0);
+            if (this.player.currentRunSound) {
+                this.sound.stopByKey(this.player.currentRunSound);
+                this.player.currentRunSound = null;
+            }
         }
+
 
         this.enemies.children.iterate(enemy => {
             if (!enemy.active) return;
@@ -244,6 +277,7 @@ export class Map extends Phaser.Scene {
             const inAttackRange = distance < ENEMY_MELEE_RANGE;
             if (inAttackRange && !enemy.hasHitPlayer && !this.player.invulnerable) {
                 enemy.hasHitPlayer = true;
+
                 enemy.playAnim("attack", 500);
                 this.beingHit = true;
                 this.time.delayedCall(400, () => {
@@ -251,6 +285,7 @@ export class Map extends Phaser.Scene {
                         enemy.active && this.player.active &&
                         Phaser.Geom.Intersects.RectangleToRectangle(this.player.getBounds(), enemy.getBounds())
                     ) {
+                        this.sound.play('player_hurt', { volume: 0.5 });
                         this.player.hp--;
                         this.player.invulnerable = true;
                         this.player.setTint(0xff0000);
@@ -261,6 +296,7 @@ export class Map extends Phaser.Scene {
                         this.time.delayedCall(1000, () => this.player.invulnerable = false);
                         if (this.player.hp <= 0) {
                             this.player.isDead = true;
+                            this.sound.play('game_over', { volume: 0.5 });
                             this.player.disableBody(true, true);
                             this.player.destroy();
                             this.spawnLoop.remove();
@@ -275,45 +311,45 @@ export class Map extends Phaser.Scene {
         });
     }
 
-    loadAnimationSpriteSheets() {
-        const dirs = ['up', 'down', 'left', 'right'];
+    // loadAnimationSpriteSheets() {
+    //     const dirs = ['up', 'down', 'left', 'right'];
 
-        // Load player animations
-        dirs.forEach(dir => {
-            this.load.spritesheet(`main_run_${dir}`, `assets/Sprite/Main/RUN/run_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
-            this.load.spritesheet(`main_idle_${dir}`, `assets/Sprite/Main/IDLE/idle_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
-            this.load.spritesheet(`main_attack_${dir}`, `assets/Sprite/Main/ATTACK/attack1_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
-        });
+    //     // Load player animations
+    //     dirs.forEach(dir => {
+    //         this.load.spritesheet(`main_run_${dir}`, `assets/Sprite/Main/RUN/run_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
+    //         this.load.spritesheet(`main_idle_${dir}`, `assets/Sprite/Main/IDLE/idle_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
+    //         this.load.spritesheet(`main_attack_${dir}`, `assets/Sprite/Main/ATTACK/attack1_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
+    //     });
 
-        // Load vampire 1
-        this.load.spritesheet("vampire1_walk", "assets/Sprite/Vampires1/Walk/Vampires1_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire1_run", "assets/Sprite/Vampires1/Run/Vampires1_Run_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire1_idle", "assets/Sprite/Vampires1/Idle/Vampires1_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire1_attack", "assets/Sprite/Vampires1/Attack/Vampires1_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire1_death", "assets/Sprite/Vampires1/Death/Vampires1_Death_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire1_hurt", "assets/Sprite/Vampires1/Hurt/Vampires1_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     // Load vampire 1
+    //     this.load.spritesheet("vampire1_walk", "assets/Sprite/Vampires1/Walk/Vampires1_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire1_run", "assets/Sprite/Vampires1/Run/Vampires1_Run_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire1_idle", "assets/Sprite/Vampires1/Idle/Vampires1_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire1_attack", "assets/Sprite/Vampires1/Attack/Vampires1_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire1_death", "assets/Sprite/Vampires1/Death/Vampires1_Death_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire1_hurt", "assets/Sprite/Vampires1/Hurt/Vampires1_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
 
-        // Load vampire 2
-        this.load.spritesheet("vampire2_walk", "assets/Sprite/Vampires2/Walk/Vampires2_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire2_run", "assets/Sprite/Vampires2/Run/Vampires2_Run_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire2_idle", "assets/Sprite/Vampires2/Idle/Vampires2_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire2_attack", "assets/Sprite/Vampires2/Attack/Vampires2_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire2_death", "assets/Sprite/Vampires2/Death/Vampires2_Death_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire2_hurt", "assets/Sprite/Vampires2/Hurt/Vampires2_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     // Load vampire 2
+    //     this.load.spritesheet("vampire2_walk", "assets/Sprite/Vampires2/Walk/Vampires2_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire2_run", "assets/Sprite/Vampires2/Run/Vampires2_Run_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire2_idle", "assets/Sprite/Vampires2/Idle/Vampires2_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire2_attack", "assets/Sprite/Vampires2/Attack/Vampires2_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire2_death", "assets/Sprite/Vampires2/Death/Vampires2_Death_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire2_hurt", "assets/Sprite/Vampires2/Hurt/Vampires2_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
 
-        // Load vampire 3
-        this.load.spritesheet("vampire3_walk", "assets/Sprite/Vampires3/Walk/Vampires3_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire3_run", "assets/Sprite/Vampires3/Run/Vampires3_Run_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire3_idle", "assets/Sprite/Vampires3/Idle/Vampires3_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire3_attack", "assets/Sprite/Vampires3/Attack/Vampires3_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire3_death", "assets/Sprite/Vampires3/Death/Vampires3_Death_full.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("vampire3_hurt", "assets/Sprite/Vampires3/Hurt/Vampires3_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     // Load vampire 3
+    //     this.load.spritesheet("vampire3_walk", "assets/Sprite/Vampires3/Walk/Vampires3_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire3_run", "assets/Sprite/Vampires3/Run/Vampires3_Run_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire3_idle", "assets/Sprite/Vampires3/Idle/Vampires3_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire3_attack", "assets/Sprite/Vampires3/Attack/Vampires3_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire3_death", "assets/Sprite/Vampires3/Death/Vampires3_Death_full.png", { frameWidth: 64, frameHeight: 64 });
+    //     this.load.spritesheet("vampire3_hurt", "assets/Sprite/Vampires3/Hurt/Vampires3_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
 
-        // Load blood crystal
-        this.load.spritesheet("blood_crystal", "assets/Items/BloodCrystal.png", { frameWidth: 384, frameHeight: 512 });
-        this.load.image('crystal', 'assets/Items/Crystal.png'); // Adjust the path as needed
+    //     // Load blood crystal
+    //     this.load.spritesheet("blood_crystal", "assets/Items/BloodCrystal.png", { frameWidth: 384, frameHeight: 512 });
+    //     this.load.image('crystal', 'assets/Items/Crystal.png'); // Adjust the path as needed
 
-    }
+    // }
 
     // startGame() {
     //     if (this.enemies) this.enemies.clear(true, true);
@@ -489,6 +525,11 @@ export class Map extends Phaser.Scene {
     }
 
     nextLevel() {
+        if (this.player.currentRunSound) {
+            this.sound.stopByKey(this.player.currentRunSound);
+            this.player.currentRunSound = null;
+        }
+
         this.elapsedTime = 0;
         const nextLevelDelay = 8000;
 
@@ -609,6 +650,7 @@ export class Map extends Phaser.Scene {
     }
 
     collectCrystal(player, crystal) {
+        this.sound.play('shard_collect', { volume: 0.5 });
         crystal.destroy();
         console.log(`Collected ${crystal.shardType} shard`);
 
@@ -636,6 +678,7 @@ export class Map extends Phaser.Scene {
 
     collectMysteryCrystal(player, crystal) {
         console.log('Collected mystery crystal');
+        this.sound.play('shard_collect', { volume: 0.5 });
         crystal.destroy();
 
 
@@ -836,6 +879,22 @@ export class Map extends Phaser.Scene {
         this.mysteryCrystalLoop.delay = nextDelay; // Adjust the delay for next spawn
 
     }
+
+    // loadAudioFiles() {
+    //     this.load.audio('shard_collect', 'assets/Audio/Shard_Collected.mp3');
+    //     this.load.audio('weather_change_alert', 'assets/Audio/Weather_Change_Alert.mp3');
+    //     this.load.audio('game_over', 'assets/Audio/Game_Over.mp3');
+    //     this.load.audio('rain', 'assets/Audio/Rain.mp3');
+    //     this.load.audio('thunder', 'assets/Audio/Thunder.mp3');
+    //     this.load.audio('vampire_hurt', 'assets/Audio/Vampire_Hurt.mp3');
+    //     this.load.audio('vampire_die', 'assets/Audio/Vampire_Die.wav');
+    //     this.load.audio('running_on_grass', 'assets/Audio/Running_on_Grass.mp3');
+    //     this.load.audio('running_on_wet_grass', 'assets/Audio/Running_on_Wet_Grass.mp3');
+    //     this.load.audio('player_attack', 'assets/Audio/Player_Attack.mp3');
+    //     this.load.audio('player_hurt', 'assets/Audio/Player_Hurt.mp3');
+    //     this.load.audio('running_on_snow', 'assets/Audio/Running_on_Snow.mp3');
+    //     this.load.audio('snow', 'assets/Audio/Snow.mp3');
+    // }
 
 
 

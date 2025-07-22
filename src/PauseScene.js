@@ -7,9 +7,18 @@ export class PauseScene extends Phaser.Scene {
 
     preload() {
         this.load.image('particle', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAFfcULOdwAAAABJRU5ErkJggg==');
+
+        // Load audio
+        this.load.audio('background_music', 'assets/Audio/Menu_Background.mp3');
+        this.load.audio('button_click', 'assets/Audio/Button_Click.mp3');
+        this.load.audio('button_hover', 'assets/Audio/Button_Hover.mp3');
     }
 
     create(data) {
+        this.sound.stopAll();
+        this.bgMusic = this.sound.add('background_music', { loop: true, volume: 0.5 });
+        this.bgMusic.play();
+
         this.parentSceneKey = data.parent;
         this.createOverlay();
 
@@ -44,7 +53,10 @@ export class PauseScene extends Phaser.Scene {
             this.scale.height / 2 - 40,
             "RESUME",
             "#33ff33",
-            () => this.resumeGame()
+            () => {
+                this.sound.play('button_click');
+                this.resumeGame();
+            }
         );
 
         const settingsButton = this.createStyledButton(
@@ -52,7 +64,10 @@ export class PauseScene extends Phaser.Scene {
             this.scale.height / 2 + 20,
             "SETTINGS",
             "#3366ff",
-            () => this.scene.start("SettingsScene")
+            () => {
+                this.sound.play('button_click');
+                this.scene.start("SettingsScene");
+            }
         );
 
         const mainMenuButton = this.createStyledButton(
@@ -60,7 +75,10 @@ export class PauseScene extends Phaser.Scene {
             this.scale.height / 2 + 80,
             "MAIN MENU",
             "#ff3333",
-            () => this.goToMainMenu()
+            () => {
+                this.sound.play('button_click');
+                this.goToMainMenu();
+            }
         );
 
         const quitButton = this.createStyledButton(
@@ -68,7 +86,10 @@ export class PauseScene extends Phaser.Scene {
             this.scale.height / 2 + 140,
             "QUIT GAME",
             "#ff6666",
-            () => this.quitGame()
+            () => {
+                this.sound.play('button_click');
+                this.quitGame();
+            }
         );
 
         this.createFloatingParticles();
@@ -153,6 +174,7 @@ export class PauseScene extends Phaser.Scene {
             bg.fillRoundedRect(-width / 2, -height / 2, width, height, 22);
             bg.lineStyle(3, parseInt(color.replace('#', '0x')), 1);
             bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 22);
+            this.sound.play('button_hover');
         });
 
         zone.on("pointerout", () => {
@@ -210,22 +232,34 @@ export class PauseScene extends Phaser.Scene {
     }
 
     resumeGame() {
-        this.scene.resume(this.parentSceneKey);
-        this.scene.stop();
-    }
-
-    goToMainMenu() {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-
-        this.cameras.main.once('camerafadeoutcomplete', () => {
-            this.scene.stop(this.parentSceneKey);
-            this.scene.stop('PauseScene');
-
-            if (this.scene.isSleeping('StartScene')) this.scene.wake('StartScene');
-            if (!this.scene.isActive('StartScene')) this.scene.start('StartScene');
-            else this.scene.bringToTop('StartScene');
+        this.sound.play('button_click');
+        this.time.delayedCall(600, () => {  // Wait 200ms so click sound finishes
+            this.scene.resume(this.parentSceneKey);
+            this.sound.stopAll();
+            this.scene.stop();
         });
     }
+
+
+    goToMainMenu() {
+        this.sound.play('button_click');
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+
+
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+            this.time.delayedCall(600, () => {
+                this.scene.stop(this.parentSceneKey);
+                this.sound.stopAll();
+                this.scene.stop('PauseScene');
+
+                if (this.scene.isSleeping('StartScene')) this.scene.wake('StartScene');
+                if (!this.scene.isActive('StartScene')) this.scene.start('StartScene');
+                else this.scene.bringToTop('StartScene');
+            });
+        });
+    }
+
+
 
 
 
