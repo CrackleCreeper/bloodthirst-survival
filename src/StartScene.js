@@ -73,8 +73,8 @@ export class StartScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
 
-        this.add.text(this.scale.width - 10, this.scale.height - 10, "v0.1  •  Made by Rihan", {
-            font: "14px Arial",
+        this.add.text(this.scale.width - 10, this.scale.height - 10, "v0.1 © 2025 Designed & Developed by Rihan", {
+            font: "12px Arial",
             fill: "#888888",
             stroke: "#000000",
             strokeThickness: 1
