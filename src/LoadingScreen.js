@@ -20,6 +20,11 @@ export class LoadingScene extends Phaser.Scene {
         this.currentTip = "";
     }
 
+    init(data) {
+        this.nextScene = data?.nextScene || "Arena1_New";
+    }
+
+
     preload() {
         // Create a simple white pixel for effects
         this.load.image('particle', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAFfcULOdwAAAABJRU5ErkJggg==');
@@ -300,7 +305,7 @@ export class LoadingScene extends Phaser.Scene {
             yoyo: true,
             onComplete: () => {
                 // Start the actual game scene
-                this.scene.start("Arena1_New");
+                this.scene.start(this.nextScene);
             }
         });
 

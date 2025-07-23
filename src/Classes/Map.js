@@ -31,17 +31,6 @@ export class Map extends Phaser.Scene {
     }
 
     preload() {
-        // if (this.cache.tilemap.exists(this.mapKey)) this.cache.tilemap.remove(this.mapKey);
-        // this.tilesets.forEach(ts => {
-        //     if (this.textures.exists(ts.imageKey)) this.textures.remove(ts.imageKey);
-        // });
-
-        // this.load.tilemapTiledJSON(this.mapKey, `assets/${this.mapKey}.json`);
-        // this.tilesets.forEach(ts => {
-        //     this.load.image(ts.imageKey, ts.imagePath);
-        // });
-        // this.loadAnimationSpriteSheets();
-        // this.loadAudioFiles();
     }
 
 
@@ -94,7 +83,6 @@ export class Map extends Phaser.Scene {
         this.crystals = this.physics.add.group();
         this.mysteryCrystals = this.physics.add.group();
         this.physics.add.overlap(this.player, this.mysteryCrystals, this.collectMysteryCrystal, null, this);
-
 
 
         // Pathfinding setup
@@ -311,76 +299,11 @@ export class Map extends Phaser.Scene {
         });
     }
 
-    // loadAnimationSpriteSheets() {
-    //     const dirs = ['up', 'down', 'left', 'right'];
 
-    //     // Load player animations
-    //     dirs.forEach(dir => {
-    //         this.load.spritesheet(`main_run_${dir}`, `assets/Sprite/Main/RUN/run_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
-    //         this.load.spritesheet(`main_idle_${dir}`, `assets/Sprite/Main/IDLE/idle_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
-    //         this.load.spritesheet(`main_attack_${dir}`, `assets/Sprite/Main/ATTACK/attack1_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
-    //     });
-
-    //     // Load vampire 1
-    //     this.load.spritesheet("vampire1_walk", "assets/Sprite/Vampires1/Walk/Vampires1_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire1_run", "assets/Sprite/Vampires1/Run/Vampires1_Run_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire1_idle", "assets/Sprite/Vampires1/Idle/Vampires1_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire1_attack", "assets/Sprite/Vampires1/Attack/Vampires1_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire1_death", "assets/Sprite/Vampires1/Death/Vampires1_Death_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire1_hurt", "assets/Sprite/Vampires1/Hurt/Vampires1_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
-
-    //     // Load vampire 2
-    //     this.load.spritesheet("vampire2_walk", "assets/Sprite/Vampires2/Walk/Vampires2_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire2_run", "assets/Sprite/Vampires2/Run/Vampires2_Run_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire2_idle", "assets/Sprite/Vampires2/Idle/Vampires2_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire2_attack", "assets/Sprite/Vampires2/Attack/Vampires2_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire2_death", "assets/Sprite/Vampires2/Death/Vampires2_Death_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire2_hurt", "assets/Sprite/Vampires2/Hurt/Vampires2_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
-
-    //     // Load vampire 3
-    //     this.load.spritesheet("vampire3_walk", "assets/Sprite/Vampires3/Walk/Vampires3_Walk_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire3_run", "assets/Sprite/Vampires3/Run/Vampires3_Run_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire3_idle", "assets/Sprite/Vampires3/Idle/Vampires3_Idle_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire3_attack", "assets/Sprite/Vampires3/Attack/Vampires3_Attack_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire3_death", "assets/Sprite/Vampires3/Death/Vampires3_Death_full.png", { frameWidth: 64, frameHeight: 64 });
-    //     this.load.spritesheet("vampire3_hurt", "assets/Sprite/Vampires3/Hurt/Vampires3_Hurt_full.png", { frameWidth: 64, frameHeight: 64 });
-
-    //     // Load blood crystal
-    //     this.load.spritesheet("blood_crystal", "assets/Items/BloodCrystal.png", { frameWidth: 384, frameHeight: 512 });
-    //     this.load.image('crystal', 'assets/Items/Crystal.png'); // Adjust the path as needed
-
-    // }
-
-    // startGame() {
-    //     if (this.enemies) this.enemies.clear(true, true);
-
-    //     this.elapsedTime = 0;
-    //     this.level = 1;
-
-    //     if (this.spawnLoop) this.spawnLoop.remove();
-    //     this.spawnLoop = this.time.addEvent({
-    //         delay: 10000,
-    //         loop: true,
-    //         callback: () => this.dynamicEnemySpawn()
-    //     });
-    //     this.spawnEnemies();
-
-    //     // Spawn immunity
-    //     this.player.invulnerable = true;
-    //     this.tweens.add({
-    //         targets: this.player,
-    //         alpha: 0,
-    //         ease: 'Linear',
-    //         duration: 200,
-    //         repeat: 14,
-    //         yoyo: true,
-    //         onComplete: () => {
-    //             this.player.alpha = 1;
-    //             this.player.invulnerable = false;
-    //         }
-    //     });
-
-    // }
+    setupSingleplayer() {
+        console.log('Running Singleplayer setup');
+        this.otherPlayers = this.add.group(); // Empty group, nothing happens
+    }
 
 
     createLayers(map, tilesets) {
@@ -879,25 +802,6 @@ export class Map extends Phaser.Scene {
         this.mysteryCrystalLoop.delay = nextDelay; // Adjust the delay for next spawn
 
     }
-
-    // loadAudioFiles() {
-    //     this.load.audio('shard_collect', 'assets/Audio/Shard_Collected.mp3');
-    //     this.load.audio('weather_change_alert', 'assets/Audio/Weather_Change_Alert.mp3');
-    //     this.load.audio('game_over', 'assets/Audio/Game_Over.mp3');
-    //     this.load.audio('rain', 'assets/Audio/Rain.mp3');
-    //     this.load.audio('thunder', 'assets/Audio/Thunder.mp3');
-    //     this.load.audio('vampire_hurt', 'assets/Audio/Vampire_Hurt.mp3');
-    //     this.load.audio('vampire_die', 'assets/Audio/Vampire_Die.wav');
-    //     this.load.audio('running_on_grass', 'assets/Audio/Running_on_Grass.mp3');
-    //     this.load.audio('running_on_wet_grass', 'assets/Audio/Running_on_Wet_Grass.mp3');
-    //     this.load.audio('player_attack', 'assets/Audio/Player_Attack.mp3');
-    //     this.load.audio('player_hurt', 'assets/Audio/Player_Hurt.mp3');
-    //     this.load.audio('running_on_snow', 'assets/Audio/Running_on_Snow.mp3');
-    //     this.load.audio('snow', 'assets/Audio/Snow.mp3');
-    // }
-
-
-
 
     loadAnimations(scene) {
         scene.anims.create({

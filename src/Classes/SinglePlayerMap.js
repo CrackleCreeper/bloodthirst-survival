@@ -1,10 +1,10 @@
-import { Map } from "./Classes/Map"; // path to your base Map class
+import { Map } from './Map.js';
 
-export class Arena1 extends Map {
-    constructor(sceneKey = "Arena1") {
+export class Arena1_New extends Map {
+    constructor() {
         super({
-            key: "Arena1_New",
-            mapKey: "Arena1_New",
+            key: 'Arena1_New',
+            mapKey: 'Arena1_New',
             tilesets: [
                 { name: "Grass", imageKey: "tileset", imagePath: "assets/Texture/TX Tileset Grass.png" },
                 { name: "Wall", imageKey: "objects", imagePath: "assets/Texture/TX Tileset Wall.png" },
@@ -14,13 +14,11 @@ export class Arena1 extends Map {
                 { name: "Concrete", imageKey: "concrete", imagePath: "assets/Texture/TX Tileset Stone Ground.png" }
             ]
         });
-
-    }
-
-    preload() {
     }
 
     create() {
-        super.create();
+        super.create().then(() => {
+            this.setupSingleplayer();
+        });
     }
 }

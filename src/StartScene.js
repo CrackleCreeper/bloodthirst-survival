@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { setMultiplayerMode } from './Classes/Socket.js';
+
 
 export class StartScene extends Phaser.Scene {
     constructor() {
@@ -15,6 +17,8 @@ export class StartScene extends Phaser.Scene {
     }
 
     create() {
+        this.game.events.off('hidden', this.game.loop.sleep, this.game.loop);
+        this.game.events.off('visible', this.game.loop.wake, this.game.loop);
         this.sound.stopAll();
         this.sound.play('background_music', { loop: true, volume: 0.5 });
         this.cameras.main.fadeIn(1000, 0, 0, 0);
@@ -59,8 +63,9 @@ export class StartScene extends Phaser.Scene {
         });
 
         // Buttons
-        this.createStyledButton(this.scale.width / 2, buttonsStartY, "SINGLEPLAYER", "#ff3333", "LoadingScene");
-        this.createStyledButton(this.scale.width / 2, buttonsStartY + 80, "MULTIPLAYER", "#3366ff", "MultiplayerLobbyScene");
+        this.createStyledButton(this.scale.width / 2, buttonsStartY, "SINGLEPLAYER", "#ff3333", "Arena1_New", false);
+        this.createStyledButton(this.scale.width / 2, buttonsStartY + 80, "MULTIPLAYER", "#3366ff", "Arena1_New_Multi", true);
+
         this.createStyledButton(this.scale.width / 2, buttonsStartY + 160, "SETTINGS", "#ffaa00", "SettingsScene");
 
         this.createFloatingEmbers();
@@ -112,7 +117,7 @@ export class StartScene extends Phaser.Scene {
         particles.setDepth(-1);
     }
 
-    createStyledButton(x, y, text, color, targetScene) {
+    createStyledButton(x, y, text, color, targetScene, isMultiplayer = false) {
         const bg = this.add.graphics();
         bg.fillStyle(0x000000, 0.7);
         bg.fillRoundedRect(-120, -25, 240, 50, 25);
@@ -164,17 +169,20 @@ export class StartScene extends Phaser.Scene {
                 onComplete: () => {
                     this.sound.play('button_click');
                     this.time.delayedCall(600, () => {
-                        if (this.scene.get(targetScene)) {
-                            this.sound.stopAll();
-                            this.cameras.main.fadeOut(500, 0, 0, 0);
-                            this.time.delayedCall(500, () => this.scene.start(targetScene));
+                        if (isMultiplayer) {
+                            setMultiplayerMode(true);
                         } else {
-                            console.warn(`Scene '${targetScene}' not found!`);
+                            setMultiplayerMode(false);
                         }
+
+                        this.sound.stopAll();
+                        this.cameras.main.fadeOut(500, 0, 0, 0);
+                        this.time.delayedCall(500, () => this.scene.start("LoadingScene", { nextScene: targetScene }));
                     });
                 }
             });
         });
+
 
 
     }
