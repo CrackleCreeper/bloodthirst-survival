@@ -38,6 +38,25 @@ io.on('connection', (socket) => {
         io.emit('updatePlayers', backendPlayers);
     });
 
+    socket.on("playerMoved", (data) => {
+        if (backendPlayers[data.playerId]) {
+            backendPlayers[data.playerId].x = data.x;
+            backendPlayers[data.playerId].y = data.y;
+            backendPlayers[data.playerId].isMoving = data.isMoving;
+            backendPlayers[data.playerId].direction = data.direction;
+        }
+
+        // Broadcast to all clients except sender
+        socket.broadcast.emit("playerMoved", data);
+    });
+
+    socket.on("playerAttack", ({ playerId, direction }) => {
+        // Broadcast to everyone *except* the attacker
+        socket.broadcast.emit("playerAttack", { playerId, direction });
+    });
+
+
+
 
 
 });

@@ -18,6 +18,7 @@ export class Map extends Phaser.Scene {
         this.apiManager = new ApiManager(this);
         this.ready = false;
         this.levelComplete = false;
+        this.areAnimationsLoaded = false;
 
 
 
@@ -297,12 +298,6 @@ export class Map extends Phaser.Scene {
                 this.time.delayedCall(1000, () => enemy.hasHitPlayer = false);
             }
         });
-    }
-
-
-    setupSingleplayer() {
-        console.log('Running Singleplayer setup');
-        this.otherPlayers = this.add.group(); // Empty group, nothing happens
     }
 
 
@@ -1196,7 +1191,7 @@ export class Map extends Phaser.Scene {
             repeat: -1
         });
 
-
+        this.areAnimationsLoaded = true;
     }
 
     loadPlayerAnimations(scene) {
