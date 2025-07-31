@@ -22,29 +22,68 @@ export class Arena1_New_Multi extends Map {
     }
 
     create() {
-        super.create().then(() => {
+        // 1) Map + tilesets
+        this.map = this.make.tilemap({ key: this.mapKey });
+        const tilesetObjs = this.tilesets.map(ts =>
+            this.map.addTilesetImage(ts.name, ts.imageKey)
+        );
 
-            this.setupMultiplayer();
+        // 2) Layers
+        this.createLayers(this.map, tilesetObjs);
 
-            console.log("Multiplayer registered animations:", this.anims.anims.keys());
-        });
+        // 3) Camera/world bounds
+        this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+        this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+        this.cameras.main.setRoundPixels(true);
 
+        // 4) Obstacles (if you need them later)
+        this.setupObstacles();
 
+        // 5) Puppet container (no physics needed)
+        this.enemies = this.add.group();
+
+        // 6) Ensure animations are loaded once
+        if (!this.anims.exists('player-idle-down')) {
+            this.loadPlayerAnimations(this);
+            this.loadAnimations(this);
+        }
+        this.areAnimationsLoaded = true;
+
+        // 7) Minimal input so update() won’t crash
+        this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.W = this.input.keyboard.addKey('W');
+        this.A = this.input.keyboard.addKey('A');
+        this.S = this.input.keyboard.addKey('S');
+        this.D = this.input.keyboard.addKey('D');
+        this.canAttack = true;
+
+        // 8) Simple UI
+        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" })
+            .setScrollFactor(0)
+            .setDepth(999);
+
+        // 9) Multiplayer socket wiring
+        this.setupMultiplayer();
+        socket.emit("player-joined");
+
+        console.log("Multiplayer registered animations:", this.anims.anims.keys());
     }
 
-    setupMultiplayer() {
-        console.log("Multiplayer setup initialized");
 
+
+    setupMultiplayer() {
         this.players = this.physics.add.group();
         this.frontendPlayers = {};
 
-        socket.on("connect_error", (err) => {
-            console.error("Socket connection error:", err);
-        });
+        socket.on("connect_error", (err) => console.error("Socket error:", err));
 
         socket.on("updatePlayers", (players) => {
-            Object.values(players).forEach(playerInfo => {
-                if (!this.frontendPlayers[playerInfo.id]) {
+            Object.values(players).forEach((playerInfo) => {
+                let sprite = this.frontendPlayers[playerInfo.id];
+
+                if (!sprite) {
+                    // create new player sprite
                     const newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main_idle_down').setScale(1);
                     newPlayer.playerId = playerInfo.id;
                     newPlayer.direction = "down";
@@ -60,14 +99,27 @@ export class Arena1_New_Multi extends Map {
                     newPlayer.flippedControls = false;
                     newPlayer.isAttacking = false;
                     newPlayer.beingHit = false;
+                    newPlayer.hp = playerInfo.hp ?? 5;
+
+                    // collide player with map
                     this.physics.add.collider(newPlayer, this.layers.collisions);
 
+                    // 📌 Follow only the local player
+                    if (playerInfo.id === socket.id) {
+                        this.cameras.main.setZoom(1.2);
+                        this.cameras.main.startFollow(newPlayer);
+                        this.hpText.setText(`HP: ${newPlayer.hp}`);
+                    }
 
                     this.frontendPlayers[playerInfo.id] = newPlayer;
                 } else {
-                    const sprite = this.frontendPlayers[playerInfo.id];
+
+                    if (playerInfo.id === socket.id && typeof playerInfo.hp === "number") {
+                        sprite.hp = playerInfo.hp;
+                        this.hpText.setText(`HP: ${sprite.hp}`);
+                    }
+                    // update existing
                     sprite.setPosition(playerInfo.x, playerInfo.y);
-                    // Handle animation
                     if (!sprite.anims.isPlaying || sprite.direction !== playerInfo.direction) {
                         sprite.anims.play(`player-run-${playerInfo.direction}`, true);
                         sprite.direction = playerInfo.direction;
@@ -75,7 +127,8 @@ export class Arena1_New_Multi extends Map {
                 }
             });
 
-            Object.keys(this.frontendPlayers).forEach(id => {
+            // prune disconnected players
+            Object.keys(this.frontendPlayers).forEach((id) => {
                 if (!players[id]) {
                     this.frontendPlayers[id].destroy();
                     delete this.frontendPlayers[id];
@@ -84,30 +137,113 @@ export class Arena1_New_Multi extends Map {
         });
 
         socket.on("playerAttack", ({ playerId, direction }) => {
-            const player = this.frontendPlayers[playerId];
-            if (player) {
-                player.anims.play(`player-attack-${direction}`, true);
-                player.isAttacking = true;
-
-                this.time.delayedCall(400, () => {
-                    if (player) player.isAttacking = false;
-                });
-            }
+            const p = this.frontendPlayers[playerId];
+            if (!p) return;
+            p.anims.play(`player-attack-${direction}`, true);
+            p.isAttacking = true;
+            this.time.delayedCall(400, () => { if (p) p.isAttacking = false; });
         });
-
 
         socket.on("playerMoved", (data) => {
-            const otherPlayer = this.frontendPlayers[data.playerId];
-            if (otherPlayer && data.playerId !== socket.id) {
-                otherPlayer.setPosition(data.x, data.y);
-                if (data.isMoving) {
-                    otherPlayer.anims.play(`player-run-${data.direction}`, true);
-                } else {
-                    otherPlayer.anims.play(`player-idle-${data.direction}`, true);
-                }
+            // server only broadcasts to others; ignore my own echo
+            if (data.playerId === socket.id) return;
+            const p = this.frontendPlayers[data.playerId];
+            if (!p) return;
+            p.setPosition(data.x, data.y);
+            p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
+        });
+
+        // Spawn puppet on first sight
+        socket.on("spawnEnemy", (data) => {
+            let enemySprite = this.enemies.getChildren().find(e => e.enemyId === data.id);
+            if (!enemySprite) {
+                // Use a valid TEXTURE key you actually loaded (match singleplayer)
+                const baseTextureKey = `${data.type.toLowerCase()}_idle`; // e.g. "vampire1_idle"
+                enemySprite = this.add.sprite(data.x, data.y, baseTextureKey);
+                enemySprite.enemyId = data.id;
+                enemySprite.setDepth(3);
+                this.enemies.add(enemySprite);
+                this.physics.collide(enemySprite, this.layers.collisions);
+            } else {
+                enemySprite.setPosition(data.x, data.y);
             }
         });
 
+        // Per-tick puppet update
+        socket.on("enemyUpdate", (enemyList) => {
+            enemyList.forEach((enemyData) => {
+                let enemySprite = this.enemies.getChildren().find(e => e.enemyId === enemyData.id);
+                if (!enemySprite) {
+                    const baseTextureKey = `${enemyData.type.toLowerCase()}_idle`;
+                    enemySprite = this.add.sprite(enemyData.x, enemyData.y, baseTextureKey);
+                    enemySprite.enemyId = enemyData.id;
+                    enemySprite.setDepth(3);
+                    this.enemies.add(enemySprite);
+                }
+
+                // smooth position
+                const alpha = 0.35;
+                enemySprite.x = Phaser.Math.Linear(enemySprite.x, enemyData.x, alpha);
+                enemySprite.y = Phaser.Math.Linear(enemySprite.y, enemyData.y, alpha);
+
+                // play animation if available
+                const wanted = enemyData.anim; // e.g. "vampire1_run_right"
+                const current = enemySprite.anims.currentAnim?.key;
+                if (wanted && wanted !== current) {
+                    if (this.anims.exists(wanted)) {
+                        enemySprite.anims.play(wanted, true);
+                    } else {
+                        const fallbackWalk = `${enemyData.type}_walk_${enemyData.facing}`;
+                        const fallbackIdle = `${enemyData.type}_idle_${enemyData.facing}`;
+                        if (this.anims.exists(fallbackWalk)) {
+                            enemySprite.anims.play(fallbackWalk, true);
+                        } else if (this.anims.exists(fallbackIdle)) {
+                            enemySprite.anims.play(fallbackIdle, true);
+                        }
+                    }
+                }
+            });
+        });
+
+        // Use the right property here (enemyId)
+        socket.on("enemyKilled", ({ id }) => {
+            const e = this.enemies.getChildren().find(s => s.enemyId === id);
+            if (e) e.destroy();
+        });
+
+        socket.on("playerHit", ({ hp, knockback }) => {
+            const me = this.frontendPlayers[socket.id];
+            if (!me) return;
+
+            me.hp = hp;
+            me.setTint(0xff0000);
+            this.hpText.setText(`HP: ${Math.max(0, me.hp)}`);
+            me.invulnerable = true;
+
+            if (me.body) {
+                const kb = new Phaser.Math.Vector2(knockback.x, knockback.y).normalize().scale(200);
+                me.body.velocity.add(kb);
+            }
+
+            this.time.delayedCall(100, () => me.clearTint());
+            this.time.delayedCall(1000, () => me.invulnerable = false);
+
+            if (hp <= 0) {
+                me.isDead = true;
+                me.disableBody?.(true, true);
+                this.showGameOverScreen?.();
+            }
+        });
+
+        socket.on("playerDied", () => {
+            const me = this.frontendPlayers[socket.id];
+            if (!me) return;
+            me.isDead = true;
+            me.setVelocity?.(0, 0);
+            me.disableBody?.(true, true);
+            this.hpText.setText("HP: 0");
+            this.showGameOverScreen?.();
+        });
 
 
         socket.on("connect", () => {
@@ -115,16 +251,7 @@ export class Arena1_New_Multi extends Map {
             socket.emit("readyForPlayers");
         });
 
-        if (socket.connected) {
-            socket.emit("readyForPlayers");
-        }
-
-        // Movement input
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.W = this.input.keyboard.addKey('W');
-        this.A = this.input.keyboard.addKey('A');
-        this.S = this.input.keyboard.addKey('S');
-        this.D = this.input.keyboard.addKey('D');
+        if (socket.connected) socket.emit("readyForPlayers");
     }
 
     update(time, delta) {

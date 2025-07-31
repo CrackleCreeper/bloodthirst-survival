@@ -5,6 +5,7 @@ import Enemy from "./Enemy";
 import { ApiManager } from "./ApiManager";
 import { WeatherEffectManager } from './WeatherEffectManager';
 import MysteryCrystal from "./MysteryCrystal";
+import { multiplayer } from "./Socket"; // Adjust the import path as necessary
 
 
 const MELEE_RANGE = 45;
@@ -52,15 +53,15 @@ export class Map extends Phaser.Scene {
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
 
+        // Only spawn if multiplayer is on.
 
         this.spawnPlayer();
         this.setupInput();
 
         this.createLayers(map, tilesetObjs);
-
+        this.spawnEnemies();
         this.setupCamera();
         this.setupObstacles();
-        this.spawnEnemies();
         this.weatherEffects = new WeatherEffectManager(this, this.apiManager);
         await this.apiManager.init();
         this.weatherText.setText(`Weather: Loading...`);
