@@ -21,6 +21,13 @@ app.use(cors({ origin: 'http://localhost:5173' }));
 let backendPlayers = {};
 let backendEnemies = {};
 let currentLevel = 1;
+let levelTime = 30; // in seconds
+let levelStartTime = Date.now();
+let levelInterval = null;
+let waveSpawnInterval = null;
+let stopLoop = false;
+
+
 let enemyIdCounter = 0;
 let btcPrice = 30000; // fallback default
 const activePlayers = new Set();
@@ -40,6 +47,11 @@ const walkGrid = backgroundGrid.map((row, y) =>
     })
 );
 
+const ATTACK_RANGE = 45;   // forward reach in px
+const ATTACK_WIDTH = 36;   // blade/swing width in px (side-to-side)
+const ATTACK_COOLDOWN_MS = 350; // server-side guard (matches/close to client animation)
+const PLAYER_HALF = 16;
+
 // --- SOCKET EVENTS ---
 io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
@@ -52,18 +64,24 @@ io.on('connection', (socket) => {
     };
 
     socket.on("player-joined", () => {
+
         activePlayers.add(socket.id);
         console.log("Active players:", activePlayers.size);
 
         if (!spawnLoopStarted) {
-            startWaveLoop();  // <-- Only starts once
+            stopLoop = false;
+            startWaveSpawnerForLevel(io, currentLevel);
+
+            startLevelTimer(io); // ✅ Add this
             spawnLoopStarted = true;
         }
     });
 
+
     socket.on("readyForPlayers", () => {
         socket.emit("updatePlayers", backendPlayers);
         socket.broadcast.emit("updatePlayers", backendPlayers);
+        socket.emit("startNextLevel", { currentLevel, levelTime });
     });
 
     socket.on("disconnect", (reason) => {
@@ -71,7 +89,20 @@ io.on('connection', (socket) => {
         activePlayers.delete(socket.id);
         delete backendPlayers[socket.id];
         io.emit("updatePlayers", backendPlayers);
+
+        // Optional: treat any disconnect as game over
+        stopLoop = true;
+        console.log(`[GAME OVER] Player ${socket.id} disconnected. Ending game.`);
+        stopAllTimersAndWaves();
+        backendEnemies = {};
+        backendPlayers = {};
+        currentLevel = 1;
+        levelTime = 30;
+
+
+        io.emit("gameOver");
     });
+
 
     socket.on("playerMoved", (data) => {
         if (backendPlayers[data.playerId]) {
@@ -79,15 +110,82 @@ io.on('connection', (socket) => {
                 x: data.x,
                 y: data.y,
                 isMoving: data.isMoving,
-                direction: data.direction
+                direction: data.direction,
+                lastAttackAt: 0,        // <-- add this
             });
         }
         socket.broadcast.emit("playerMoved", data);
     });
 
-    socket.on("playerAttack", ({ playerId, direction }) => {
-        socket.broadcast.emit("playerAttack", { playerId, direction });
+    socket.on("playerDied", () => {
+        const player = backendPlayers[socket.id];
+        stopLoop = true;
+        if (player) player.isDead = true;
+
+        console.log(`[GAME OVER] Player ${socket.id} died. Ending game for all players.`);
+        stopAllTimersAndWaves();
+        backendEnemies = {};
+        backendPlayers = {};
+        currentLevel = 1;
+        levelTime = 30;
+        spawnLoopStarted = false;
+
+        io.emit("gameOver");
+
     });
+
+
+    socket.on("playerAttack", ({ playerId, direction }) => {
+        const pl = backendPlayers[playerId];
+        if (!pl) return;
+
+        // Server-side cooldown guard
+        const now = Date.now();
+        if (now - (pl.lastAttackAt || 0) < ATTACK_COOLDOWN_MS) {
+            // still broadcast the animation so the attacker sees it in sync
+            socket.broadcast.emit("playerAttack", { playerId, direction });
+            return;
+        }
+        pl.lastAttackAt = now;
+
+        // (Optional) trust the passed direction or force to server-known direction
+        const face = direction || pl.direction || 'down';
+
+        // Find all enemies inside the melee oriented-rect
+        const hits = [];
+        for (const id in backendEnemies) {
+            const e = backendEnemies[id];
+            if (e.isDead) continue;
+            if (enemyInsideMeleeCone(pl, e, face)) {
+                hits.push(e);
+            }
+        }
+
+        // Apply damage to all hits (cleave), or just the closest if you want single-target
+        const baseDmg = 1;
+        const dmg = Math.max(1, Math.floor(baseDmg * (pl.attackMultiplier || 1)));
+
+        for (const e of hits) {
+            const died = applyDamageToEnemy(e, dmg);
+            if (!died) {
+                io.emit("enemyHit", { id: e.id, hp: e.hp });
+            }
+
+            if (died) {
+                // broadcast to all so their puppet gets destroyed
+                io.emit("enemyKilled", { id: e.id });
+                delete backendEnemies[e.id];
+            }
+        }
+
+
+
+        // Still broadcast the attack animation to OTHER clients
+        socket.broadcast.emit("playerAttack", { playerId, direction: face });
+    });
+
+
+
 });
 
 // --- ENEMY LOGIC ---
@@ -145,6 +243,10 @@ function getRandomValidTile(tileWidth = 32, tileHeight = 32, maxAttempts = 30) {
 }
 
 function dynamicEnemySpawn() {
+    if (stopLoop) {
+        console.log("[SPAWN BLOCKED] Game stopped, no enemy spawned.");
+        return;
+    }
     const extraEnemies = Math.floor(btcPrice / 10000);
     const spawnCount = 1 + extraEnemies;
 
@@ -175,6 +277,21 @@ function dynamicEnemySpawn() {
 
     console.log(`Spawned ${spawnCount} enemies at level ${currentLevel}`);
 }
+
+function stopAllTimersAndWaves() {
+    clearInterval(levelInterval);
+    clearInterval(waveSpawnInterval);
+    levelInterval = null;
+    waveSpawnInterval = null;
+    stopLoop = true;
+    spawnLoopStarted = false;
+    console.log("[Cleanup] levelInterval =", levelInterval);
+    console.log("[Cleanup] waveSpawnInterval =", waveSpawnInterval);
+
+    console.log("[✔] Timers and enemy spawns stopped.");
+}
+
+
 
 
 function updateEnemies(deltaTime, currentTime, players) {
@@ -216,6 +333,104 @@ function updateEnemies(deltaTime, currentTime, players) {
     io.emit("enemyUpdate", Object.values(backendEnemies).map(e => e.getData()));
 }
 
+// --- PLAYER HIT ---
+function dirToVector(direction) {
+    switch (direction) {
+        case 'up': return { x: 0, y: -1 };
+        case 'down': return { x: 0, y: 1 };
+        case 'left': return { x: -1, y: 0 };
+        case 'right': return { x: 1, y: 0 };
+        default: return { x: 0, y: 1 };
+    }
+}
+
+function enemyInsideMeleeCone(player, enemy, direction) {
+    const f = dirToVector(direction);
+    // perpendicular (rotate facing by 90 degrees)
+    const p = { x: -f.y, y: f.x };
+
+    const dx = enemy.x - player.x;
+    const dy = enemy.y - player.y;
+
+    // forward distance (projection onto facing)
+    const forward = dx * f.x + dy * f.y;
+    if (forward < PLAYER_HALF * 0.2 || forward > ATTACK_RANGE + PLAYER_HALF) return false;
+
+    // side offset (projection onto perpendicular)
+    const side = Math.abs(dx * p.x + dy * p.y);
+    return side <= ATTACK_WIDTH * 0.5;
+}
+
+function applyDamageToEnemy(enemy, dmg) {
+    if (!enemy || enemy.isDead) return false;
+    enemy.takeDamage(dmg);
+    return enemy.isDead === true;
+}
+
+// --- LEVEL SYSTEM ---
+
+function startLevelTimer(io) {
+    if (stopLoop) {
+        console.log("[startLevelTimer] Loop stopped. Not starting timer.");
+        return;
+    }
+    levelStartTime = Date.now();
+    levelInterval = setInterval(() => {
+        if (stopLoop) {
+            clearInterval(levelInterval);
+            levelInterval = null;
+            return;
+        }
+        const elapsed = Math.floor((Date.now() - levelStartTime) / 1000);
+        const remaining = Math.max(0, levelTime - elapsed);
+
+        io.emit("levelTimerUpdate", { remaining, currentLevel });
+
+        if (remaining <= 0) {
+            clearInterval(levelInterval);
+            levelInterval = null;
+            nextLevel(io);
+        }
+    }, 1000);
+}
+
+
+function nextLevel(io) {
+    currentLevel++;
+    levelTime += 10;
+
+    // Notify clients
+    io.emit("levelComplete", { currentLevel });
+
+    // Clear enemies
+    // Broadcast kill signals to all enemies
+    for (const id in backendEnemies) {
+        const enemy = backendEnemies[id];
+        if (!enemy.isDead) {
+            enemy.isDead = true;
+            io.emit("enemyKilled", { id }); // Trigger client animation
+        }
+    }
+
+    // Wait ~2 seconds before clearing them from backend
+    setTimeout(() => {
+        backendEnemies = {};
+    }, 2000);
+    clearInterval(waveSpawnInterval);
+
+    // Delay before starting next level
+    setTimeout(() => {
+        if (stopLoop) {
+            console.log("[SPAWN LOOP] Stop loop active. Not spawning.");
+            clearInterval(waveSpawnInterval);
+            return;
+        }
+        io.emit("startNextLevel", { currentLevel, levelTime });
+        startWaveSpawnerForLevel(io, currentLevel);
+        // your own enemy logic here
+        startLevelTimer(io);
+    }, 8000);
+}
 
 
 // --- BITCOIN PRICE ---
@@ -245,6 +460,24 @@ async function startWaveLoop() {
     setTimeout(startWaveLoop, delay);
 }
 
+function startWaveSpawnerForLevel(io, level) {
+    if (waveSpawnInterval) clearInterval(waveSpawnInterval);
+
+    const delay = Math.max(2000, 10000 - level * 1000); // Match singleplayer
+    console.log(`[SPAWN LOOP] Interval set to ${delay}ms for level ${level}`);
+
+    // Spawn the first wave instantly, like in singleplayer
+    dynamicEnemySpawn(io);
+
+    waveSpawnInterval = setInterval(() => {
+        if (stopLoop) {
+            console.log("[SPAWN LOOP] Stop loop active. Not spawning.");
+            return;
+        }
+        if (activePlayers.size === 0) return;
+        dynamicEnemySpawn();
+    }, delay);
+}
 
 // -- Update loop --
 let lastTime = Date.now();
@@ -253,10 +486,15 @@ setInterval(() => {
     const now = Date.now();
     const delta = now - lastTime;
     lastTime = now;
+    console.log(stopLoop)
+    if (stopLoop) return;
 
     // update enemies
     const t0 = Date.now();
+    const elapsed = Math.floor((now - levelStartTime) / 1000);
+    const timeLeft = Math.max(0, levelTime - elapsed);
     updateEnemies(delta, now, backendPlayers);
+
     const cost = Date.now() - t0;
 
     worst = Math.max(worst, cost);
@@ -265,6 +503,8 @@ setInterval(() => {
         if (Math.random() < 0.05) console.warn(`[TICK] cost=${cost}ms (worst=${worst}ms) enemies=${Object.keys(backendEnemies).length}`);
     }
 }, 100);
+
+
 
 
 

@@ -62,6 +62,10 @@ export class Arena1_New_Multi extends Map {
         this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" })
             .setScrollFactor(0)
             .setDepth(999);
+        this.currentLevelText = this.add.text(100, 140, `Level: 1`, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        this.timerText = this.add.text(100, 110, `Time Left: 30`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+
+        this.gameOver = false;
 
         // 9) Multiplayer socket wiring
         this.setupMultiplayer();
@@ -187,29 +191,68 @@ export class Arena1_New_Multi extends Map {
                 enemySprite.y = Phaser.Math.Linear(enemySprite.y, enemyData.y, alpha);
 
                 // play animation if available
-                const wanted = enemyData.anim; // e.g. "vampire1_run_right"
-                const current = enemySprite.anims.currentAnim?.key;
-                if (wanted && wanted !== current) {
-                    if (this.anims.exists(wanted)) {
-                        enemySprite.anims.play(wanted, true);
-                    } else {
-                        const fallbackWalk = `${enemyData.type}_walk_${enemyData.facing}`;
-                        const fallbackIdle = `${enemyData.type}_idle_${enemyData.facing}`;
-                        if (this.anims.exists(fallbackWalk)) {
-                            enemySprite.anims.play(fallbackWalk, true);
-                        } else if (this.anims.exists(fallbackIdle)) {
-                            enemySprite.anims.play(fallbackIdle, true);
+                // Only update animation if not locked
+                if (!enemySprite.animationLockUntil || this.time.now > enemySprite.animationLockUntil) {
+                    const wanted = enemyData.anim;
+                    const current = enemySprite.anims.currentAnim?.key;
+
+                    if (wanted && wanted !== current) {
+                        if (this.anims.exists(wanted)) {
+                            enemySprite.anims.play(wanted, true);
+                        } else {
+                            const fallbackWalk = `${enemyData.type}_walk_${enemyData.facing}`;
+                            const fallbackIdle = `${enemyData.type}_idle_${enemyData.facing}`;
+                            if (this.anims.exists(fallbackWalk)) {
+                                enemySprite.anims.play(fallbackWalk, true);
+                            } else if (this.anims.exists(fallbackIdle)) {
+                                enemySprite.anims.play(fallbackIdle, true);
+                            }
                         }
                     }
                 }
+
             });
         });
+
+        socket.on("enemyHit", ({ id, hp }) => {
+            const s = this.enemies.getChildren().find(e => e.enemyId === id);
+            if (!s) return;
+
+            const type = s.texture.key.split("_")[0]; // "vampire1"
+            const direction = s.anims.currentAnim?.key?.split("_").pop() || "down";
+
+            const hurtAnim = `${type}_hurt_${direction}`;
+
+            if (this.anims.exists(hurtAnim)) {
+                s.anims.play(hurtAnim, true);
+                s.animationLockUntil = this.time.now + 400; // lock for 400ms
+            } else {
+                s.setTint(0xffaaaa);
+                this.time.delayedCall(80, () => s.clearTint());
+            }
+        });
+
+
 
         // Use the right property here (enemyId)
         socket.on("enemyKilled", ({ id }) => {
             const e = this.enemies.getChildren().find(s => s.enemyId === id);
-            if (e) e.destroy();
+            if (!e) return;
+
+            const type = e.texture.key.split("_")[0]; // "vampire1", "vampire2", etc.
+
+            const deathAnim = `${type}_death`;
+
+            if (this.anims.exists(deathAnim)) {
+                e.anims.play(deathAnim, true);
+                e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+                    e.destroy();
+                });
+            } else {
+                e.destroy(); // fallback
+            }
         });
+
 
         socket.on("playerHit", ({ hp, knockback }) => {
             const me = this.frontendPlayers[socket.id];
@@ -242,8 +285,44 @@ export class Arena1_New_Multi extends Map {
             me.setVelocity?.(0, 0);
             me.disableBody?.(true, true);
             this.hpText.setText("HP: 0");
+            socket.emit("playerDied");
             this.showGameOverScreen?.();
         });
+
+        socket.on("levelTimerUpdate", ({ remaining, currentLevel }) => {
+            this.timerText.setText(`Time Left: ${remaining}`);
+            this.currentLevelText.setText(`Level: ${currentLevel}`);
+        });
+
+        socket.on("levelComplete", ({ currentLevel }) => {
+            const text = this.add.text(
+                this.cameras.main.centerX,
+                this.cameras.main.centerY,
+                `LEVEL ${currentLevel - 1} COMPLETE!\nNext level starting soon...`,
+                { fontSize: '32px', fill: '#ff0', align: 'center' }
+            )
+                .setOrigin(0.5)
+                .setScrollFactor(0)
+                .setDepth(999);
+
+            this.time.delayedCall(8000, () => text.destroy());
+        });
+
+        socket.on("startNextLevel", ({ level, levelTime }) => {
+            this.currentLevelText.setText(`Level: ${level}`);
+            this.timerText.setText(`Time Left: ${levelTime}`);
+        });
+
+        socket.on("gameOver", () => {
+            console.log("[Game Over] All gameplay halted.");
+            this.gameOver = true;
+
+            this.enemies.clear(true, true); // destroy all enemy puppets
+            Object.values(this.frontendPlayers).forEach(p => p.setVelocity?.(0, 0));
+
+            this.showGameOverScreen(); // <-- this was missing
+        });
+
 
 
         socket.on("connect", () => {
@@ -258,7 +337,7 @@ export class Arena1_New_Multi extends Map {
         // super.update(time, delta);
 
         if (!this.frontendPlayers || !socket.id || !this.frontendPlayers[socket.id] || !this.areAnimationsLoaded) return;
-
+        if (this.gameOver) return;
         const myPlayer = this.frontendPlayers[socket.id];
 
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !myPlayer.isAttacking) {
@@ -287,28 +366,31 @@ export class Arena1_New_Multi extends Map {
 
         if (!myPlayer.isAttacking && !myPlayer.frozen) {
             const speed = myPlayer.speed;
-            let vx = 0, vy = 0;
-            let direction = "down";
-
-            if (this.W.isDown) {
-                vy = -speed;
-                direction = "up";
-            } else if (this.S.isDown) {
-                vy = speed;
-                direction = "down";
-            }
+            let direction = myPlayer.direction || "down";
+            let moving = false;
 
             if (this.A.isDown) {
-                vx = -speed;
+                myPlayer.setVelocity(-speed, 0);
                 direction = "left";
+                moving = true;
             } else if (this.D.isDown) {
-                vx = speed;
+                myPlayer.setVelocity(speed, 0);
                 direction = "right";
+                moving = true;
+            } else if (this.W.isDown) {
+                myPlayer.setVelocity(0, -speed);
+                direction = "up";
+                moving = true;
+            } else if (this.S.isDown) {
+                myPlayer.setVelocity(0, speed);
+                direction = "down";
+                moving = true;
+            } else {
+                myPlayer.setVelocity(0, 0);
             }
 
-            myPlayer.setVelocity(vx, vy);
-
-            if (vx !== 0 || vy !== 0) {
+            // Animations
+            if (moving) {
                 if (!myPlayer.anims.isPlaying || myPlayer.direction !== direction) {
                     myPlayer.anims.play(`player-run-${direction}`, true);
                     myPlayer.direction = direction;
@@ -319,18 +401,19 @@ export class Arena1_New_Multi extends Map {
                 }
             }
 
-
+            // Emit movement update to server only if changed
             if (socket && this.frontendPlayers[socket.id]) {
-                const myPlayer = this.frontendPlayers[socket.id];
                 const { x, y } = myPlayer;
-                const isMoving = (vx !== 0 || vy !== 0);
-                const direction = myPlayer.direction;
+                const isMoving = moving;
 
                 if (x !== this.lastSentX || y !== this.lastSentY || isMoving !== this.lastMoving || direction !== this.lastDirection) {
                     socket.emit("playerMoved", {
                         playerId: socket.id,
-                        x, y, isMoving, direction
+                        x, y,
+                        isMoving,
+                        direction
                     });
+
                     this.lastSentX = x;
                     this.lastSentY = y;
                     this.lastMoving = isMoving;
@@ -340,5 +423,16 @@ export class Arena1_New_Multi extends Map {
         }
 
 
+
     }
+
+    showGameOverScreen() {
+        const text = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            "GAME OVER",
+            { fontSize: '48px', fill: '#ff0000', fontFamily: 'Arial', align: 'center' }
+        ).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+    }
+
 }

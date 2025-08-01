@@ -26,7 +26,7 @@ export class ServerEnemy {
 
         this.tileSize = tileSize;
 
-        this.attackRange = 32;
+        this.attackRange = 22;
         this.attackDamage = 1;
         this.lastAttackTime = 0;
         this.animationLockUntil = 0;
