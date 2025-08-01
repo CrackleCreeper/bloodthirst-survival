@@ -20,6 +20,10 @@ app.use(cors({ origin: 'http://localhost:5173' }));
 // State
 let backendPlayers = {};
 let backendEnemies = {};
+const readyPlayers = new Set();
+let currentWeather = null;
+let currentWeatherCode = null;
+
 let currentLevel = 1;
 let levelTime = 30; // in seconds
 let levelStartTime = Date.now();
@@ -74,8 +78,53 @@ io.on('connection', (socket) => {
 
             startLevelTimer(io); // ✅ Add this
             spawnLoopStarted = true;
+
+            currentWeatherCode = generateWeatherCode(currentLevel);
+            io.emit("weatherUpdate", { code: currentWeatherCode });
         }
     });
+    socket.on("playerReady", () => {
+        console.log(`${socket.id} is ready`);
+        readyPlayers.add(socket.id);
+
+        if (readyPlayers.size === activePlayers.size) {
+            console.log("✅ All players are ready. Restarting game.");
+
+            // Full reset
+            backendEnemies = {};
+            backendPlayers = {};
+            currentLevel = 1;
+            levelTime = 30;
+            stopLoop = false;
+            spawnLoopStarted = false;
+
+            // Reset all ready flags
+            readyPlayers.clear();
+
+            // Emit restart signal
+            io.emit("restartGame");
+
+            // Restart game loop
+            for (const id of activePlayers) {
+                backendPlayers[id] = {
+                    id,
+                    x: 400,
+                    y: 200,
+                    hp: 5,
+                    attackMultiplier: 1,
+                    isAttacking: false,
+                    invulnerable: false,
+                    isFrozen: false,
+                };
+            }
+
+            io.emit("updatePlayers", backendPlayers);
+
+            startWaveSpawnerForLevel(io, currentLevel);
+            startLevelTimer(io);
+        }
+    });
+
 
 
     socket.on("readyForPlayers", () => {
@@ -133,6 +182,30 @@ io.on('connection', (socket) => {
         io.emit("gameOver");
 
     });
+
+    socket.on("lightningStrikeRequest", ({ x, y }) => {
+        const radius = 50;
+
+        for (const playerId in backendPlayers) {
+            const p = backendPlayers[playerId];
+            const dist = Math.hypot(p.x - x, p.y - y);
+            if (dist < radius && !p.invulnerable) {
+                p.hp--;
+                io.to(playerId).emit("playerHitByLightning", { x, y });
+            }
+        }
+
+        for (const enemyId in backendEnemies) {
+            const e = backendEnemies[enemyId];
+            const dist = Math.hypot(e.x - x, e.y - y);
+            if (dist < radius) {
+                e.takeDamage?.(2);
+            }
+        }
+
+        io.emit("lightningStrike", { x, y }); // optional visual sync
+    });
+
 
 
     socket.on("playerAttack", ({ playerId, direction }) => {
@@ -425,6 +498,8 @@ function nextLevel(io) {
             clearInterval(waveSpawnInterval);
             return;
         }
+        currentWeatherCode = generateWeatherCode(currentLevel);
+        io.emit("weatherUpdate", { code: currentWeatherCode });
         io.emit("startNextLevel", { currentLevel, levelTime });
         startWaveSpawnerForLevel(io, currentLevel);
         // your own enemy logic here
@@ -448,6 +523,34 @@ async function fetchBtcPrice() {
     } catch (err) {
         console.warn("BTC fetch failed:", err.message);
     }
+}
+
+// -- WEATHER SYSTEM --
+
+function generateWeatherCode(level) {
+    // Weighted weather roll
+    const clearCodes = [0, 1, 2];
+    const fogCodes = [45];
+    const rainCodes = [51, 61, 63];
+    const snowCodes = [75, 77];
+    const stormCodes = [95, 99];
+    const overcast = [3, 4, 5];
+
+    if (level % 5 === 0) {
+        return getRandom([0, 77, 95]); // clear, snow, storm on milestone levels
+    }
+
+    const options = [
+        ...clearCodes, ...overcast,
+        ...fogCodes, ...rainCodes,
+        ...snowCodes, ...stormCodes
+    ];
+
+    return options[Math.floor(Math.random() * options.length)];
+}
+
+function getRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
 }
 
 // --- SPAWN LOOP ---
@@ -486,7 +589,6 @@ setInterval(() => {
     const now = Date.now();
     const delta = now - lastTime;
     lastTime = now;
-    console.log(stopLoop)
     if (stopLoop) return;
 
     // update enemies

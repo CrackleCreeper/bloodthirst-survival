@@ -10,7 +10,7 @@ export class ServerEnemy {
         this.type = type.toLowerCase();
 
         this.hp = (this.type == "vampire1") ? 2 : ((this.type == "vampire2") ? 1 : 4);
-        this.speed = (this.type == "vampire1") ? 50 : ((this.type == "vampire2") ? 140 : 40);
+        this.baseChaseSpeed = (this.type == "vampire1") ? 50 : ((this.type == "vampire2") ? 140 : 40);
         this.targetPlayerId = null;
 
         this.stuckCounter = 0;
@@ -44,9 +44,13 @@ export class ServerEnemy {
         // --- Wander + jitter fields ---
         this.wanderTarget = null;
         this.nextWanderTime = 0;
-        this.wanderSpeed = Math.max(20, Math.floor(this.speed * 0.5));
+        this.wanderSpeed = Math.max(20, Math.floor(this.baseChaseSpeed * 0.5));
+        this.baseWanderSpeed = 20
+        this.chaseSpeed = this.baseChaseSpeed;
         this.repathJitter = Math.floor(Math.random() * 400); // was 250
         this.lastTarget = { x: -1, y: -1 };                  // track last path target
+        this.detectionRadius = 350;
+
 
         // memory of last seen player
         this.lastSeenAt = -Infinity;   // timestamp (ms) when LOS was last true
@@ -107,7 +111,10 @@ export class ServerEnemy {
         if (!closest) { this.updateWander(deltaTime, currentTime); return; }
 
         this.targetPlayerId = closest.id;
-
+        if (minDist > this.detectionRadius) {
+            this.updateWander(deltaTime, currentTime);
+            return;
+        }
         // LOS + memory
         const targetX = Math.floor(closest.x / this.tileSize);
         const targetY = Math.floor(closest.y / this.tileSize);
@@ -122,7 +129,7 @@ export class ServerEnemy {
 
         const inMemory = (currentTime - this.lastSeenAt) < this.memoryMs;
 
-        if (hasLOS) {
+        if (hasLOS && minDist < this.detectionRadius) {
             // ===== A) DIRECT CHASE — no pathfinding
             this.wanderTarget = null;
             this.path = null;
@@ -132,8 +139,8 @@ export class ServerEnemy {
             const dy = closest.y - this.y;
             const dist = Math.hypot(dx, dy);
             if (dist > 0.001) {
-                const vx = (dx / dist) * this.speed * (deltaTime / 1000);
-                const vy = (dy / dist) * this.speed * (deltaTime / 1000);
+                const vx = (dx / dist) * this.chaseSpeed * (deltaTime / 1000);
+                const vy = (dy / dist) * this.chaseSpeed * (deltaTime / 1000);
                 this.x += vx; this.y += vy;
 
                 this.gridX = Math.floor(this.x / this.tileSize);
@@ -194,8 +201,8 @@ export class ServerEnemy {
                         this.currentAnim = `${this.type}_idle_${this.facing}`;
                     }
                 } else {
-                    const vx = (dx / dist) * this.speed * (deltaTime / 1000);
-                    const vy = (dy / dist) * this.speed * (deltaTime / 1000);
+                    const vx = (dx / dist) * this.chaseSpeed * (deltaTime / 1000);
+                    const vy = (dy / dist) * this.chaseSpeed * (deltaTime / 1000);
                     this.x += vx; this.y += vy;
 
                     this.gridX = Math.floor(this.x / this.tileSize);
@@ -294,6 +301,7 @@ export class ServerEnemy {
         this.hp -= amount;
         if (this.hp <= 0) {
             this.isDead = true;
+            this.currentAnim = `${this.type.toLowerCase()}_death`;
         }
     }
 

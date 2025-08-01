@@ -1,5 +1,7 @@
+import { ApiManager } from './ApiManager.js';
 import { Map } from './Map.js';
 import { io } from 'socket.io-client';
+import { WeatherEffectManager } from './WeatherEffectManager.js';
 const socket = io('http://localhost:3000', {
     transports: ['websocket']
 });
@@ -64,8 +66,11 @@ export class Arena1_New_Multi extends Map {
             .setDepth(999);
         this.currentLevelText = this.add.text(100, 140, `Level: 1`, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
         this.timerText = this.add.text(100, 110, `Time Left: 30`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-
+        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0);
         this.gameOver = false;
+        this.apiManager = new ApiManager(this);
+        this.weatherManager = new WeatherEffectManager(this, this.apiManager, true);
+
 
         // 9) Multiplayer socket wiring
         this.setupMultiplayer();
@@ -79,7 +84,7 @@ export class Arena1_New_Multi extends Map {
     setupMultiplayer() {
         this.players = this.physics.add.group();
         this.frontendPlayers = {};
-
+        this.socket = socket;
         socket.on("connect_error", (err) => console.error("Socket error:", err));
 
         socket.on("updatePlayers", (players) => {
@@ -313,6 +318,18 @@ export class Arena1_New_Multi extends Map {
             this.timerText.setText(`Time Left: ${levelTime}`);
         });
 
+        socket.on("weatherUpdate", ({ code }) => {
+            if (this.weatherManager) {
+                this.weatherManager.applyFromCode(code);
+            }
+        });
+
+        socket.on("lightningStrike", ({ x, y }) => {
+            this.weatherManager.showLightningVisual(x, y);
+        });
+
+
+
         socket.on("gameOver", () => {
             console.log("[Game Over] All gameplay halted.");
             this.gameOver = true;
@@ -322,6 +339,11 @@ export class Arena1_New_Multi extends Map {
 
             this.showGameOverScreen(); // <-- this was missing
         });
+
+        socket.on("restartGame", () => {
+            this.scene.restart(); // restart the Phaser scene cleanly
+        });
+
 
 
 
@@ -339,7 +361,7 @@ export class Arena1_New_Multi extends Map {
         if (!this.frontendPlayers || !socket.id || !this.frontendPlayers[socket.id] || !this.areAnimationsLoaded) return;
         if (this.gameOver) return;
         const myPlayer = this.frontendPlayers[socket.id];
-
+        if (myPlayer.slipping) return;
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !myPlayer.isAttacking) {
             const dir = myPlayer.direction || "down";
 
@@ -422,8 +444,6 @@ export class Arena1_New_Multi extends Map {
             }
         }
 
-
-
     }
 
     showGameOverScreen() {
@@ -433,6 +453,11 @@ export class Arena1_New_Multi extends Map {
             "GAME OVER",
             { fontSize: '48px', fill: '#ff0000', fontFamily: 'Arial', align: 'center' }
         ).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+
+        this.input.keyboard.once("keydown-ENTER", () => {
+            socket.emit("playerReady");
+        });
+
     }
 
 }

@@ -1,13 +1,14 @@
 // WeatherEffectManager.js
 import Phaser from 'phaser';
 export class WeatherEffectManager {
-    constructor(scene, apiManager) {
+    constructor(scene, apiManager, isMultiplayer = false) {
         this.scene = scene;
         this.api = apiManager;
         this.activeCode = null;
         this.isRaining = false;
         this.isSnowing = false;
         this.lastStrikeTime = 0;
+        this.isMultiplayer = isMultiplayer;
         this.roundCount = 1;
     }
 
@@ -82,6 +83,54 @@ export class WeatherEffectManager {
         });
     }
 
+    applyFromCode(code) {
+        this.activeCode = code;
+        this.roundCount++; // Optional: increment counter
+        this.scene.sound.play('weather_change_alert', { volume: 0.3 });
+
+        const description = this.getWeatherDescription(code);
+        const gameplayEffect = this.getGameplayEffectText(code);
+
+        this.showWeatherChangeText();
+
+        this.scene.time.delayedCall(2000, () => {
+            this.reset();
+            console.log("Applying weather effect from server:", code);
+
+            this.showGameplayEffectText(description, gameplayEffect);
+
+            this.scene.sound.stopByKey('rain');
+            if (code >= 0 && code <= 2) this.buffEnemySpeed(1.3);
+            else if (code >= 3 && code <= 9) this.addCloudOverlay();
+            else if (code >= 40 && code <= 49) {
+                this.addFogOverlay();
+                this.reduceEnemySight(0.5);
+            }
+            else if (code >= 51 && code <= 67) {
+                this.scene.sound.play('rain', { loop: true, volume: 0.1 });
+                this.isRaining = true;
+                this.enablePlayerSlips();
+                this.addRainParticles();
+            }
+            else if (code >= 71 && code <= 77) {
+                this.scene.sound.play('snow', { loop: true, volume: 1 });
+                this.isSnowing = true;
+                this.slowEveryone(0.6);
+                this.addSnowParticles();
+            }
+            else if ((code >= 95 && code <= 99) || code == 80) {
+                this.scene.sound.play('rain', { loop: true, volume: 0.1 });
+                this.isRaining = true;
+                this.addRainParticles();
+                this.scheduleLightningStrikes();
+            }
+
+            // Update weather corner text
+            this.scene.weatherText.setText(`Weather: ${description}`);
+        });
+    }
+
+
 
     reset() {
         // Remove overlays
@@ -94,7 +143,11 @@ export class WeatherEffectManager {
         }
         if (this.slippingEvent) {
             this.scene.time.removeEvent(this.slippingEvent);
-            this.scene.player.slipping = false; // Reset player state
+            if (!this.isMultiplayer)
+                this.scene.player.slipping = false; // Reset player state
+            else {
+                this.scene.frontendPlayers[window.socket.id].slipping = false;
+            }
         }
 
         if (this.cloudUpdateListener) this.scene.events.off('update', this.cloudUpdateListener);
@@ -102,7 +155,9 @@ export class WeatherEffectManager {
         if (this.staticClouds) this.staticClouds.forEach(c => c.destroy());
 
         // Reset speeds back to normal
-        if (this.scene.player) this.scene.player.speed = this.scene.player.baseSpeed || 250;
+        if (this.isMultiplayer) {
+            this.scene.frontendPlayers[window.socket.id].speed = 250;
+        } else if (this.scene.player) this.scene.player.speed = this.scene.player.baseSpeed || 250;
         this.scene.enemies.children.iterate(enemy => {
             if (enemy.chaseSpeed && enemy.baseChaseSpeed) enemy.chaseSpeed = enemy.baseChaseSpeed;
             if (enemy.wanderSpeed && enemy.baseWanderSpeed) enemy.wanderSpeed = enemy.baseWanderSpeed;
@@ -191,12 +246,28 @@ export class WeatherEffectManager {
     }
 
     slowEveryone(factor) {
-        this.scene.player.speed = (this.scene.player.speed || 150) * factor;
+        // Adjust speed of YOUR player
+        const player = this.scene.player || this.scene.frontendPlayers?.[window.socket?.id];
+        if (player) {
+            player.speed = (player.speed || 150) * factor;
+        }
+
+        // Adjust other players (multiplayer)
+        if (this.scene.frontendPlayers) {
+            Object.values(this.scene.frontendPlayers).forEach(p => {
+                if (p && p !== player) {
+                    p.speed = (p.speed || 150) * factor;
+                }
+            });
+        }
+
+        // Enemies
         this.scene.enemies.children.iterate(enemy => {
             enemy.chaseSpeed *= factor;
             enemy.wanderSpeed *= factor;
         });
     }
+
 
     addCloudOverlay() {
         const mapWidth = this.scene.map.widthInPixels;
@@ -335,7 +406,8 @@ export class WeatherEffectManager {
             delay: 5000,
             loop: true,
             callback: () => {
-                const player = this.scene.player;
+                const player = this.scene.player || this.scene.frontendPlayers?.[window.socket?.id];
+
                 if (!player.active) return;
 
                 // Prevent input during slip
@@ -383,6 +455,19 @@ export class WeatherEffectManager {
     strikeLightning() {
         const x = Phaser.Math.Between(0, this.scene.map.widthInPixels);
         const y = Phaser.Math.Between(0, this.scene.map.heightInPixels);
+
+        // Always show lightning visuals
+        this.showLightningVisual(x, y);
+
+        if (!this.isMultiplayer) {
+            this.applyLightningDamage(x, y);
+        } else {
+            // 🔥 Multiplayer: tell the server to check damage
+            this.scene.socket.emit("lightningStrikeRequest", { x, y });
+        }
+    }
+
+    showLightningVisual(x, y) {
         this.scene.sound.play('thunder', { volume: 0.3 });
         const lightning = this.scene.add.image(x, y, 'lightning')
             .setDepth(1000)
@@ -390,14 +475,12 @@ export class WeatherEffectManager {
             .setOrigin(0.5)
             .setAlpha(0);
 
-        // Quick fade-in
         this.scene.tweens.add({
             targets: lightning,
             alpha: 1,
             duration: 100,
             ease: 'Cubic.easeIn',
             onComplete: () => {
-                // Quick fade-out after flash
                 this.scene.tweens.add({
                     targets: lightning,
                     alpha: 0,
@@ -408,25 +491,30 @@ export class WeatherEffectManager {
             }
         });
 
-        // Screen shake for thunder impact
         this.scene.cameras.main.shake(250, 0.01);
+    }
 
-        // Damage entities in blast radius
+    applyLightningDamage(x, y) {
         const radius = 50;
-        const playerDist = Phaser.Math.Distance.Between(x, y, this.scene.player.x, this.scene.player.y);
-        if (playerDist < radius && !this.scene.player.invulnerable) {
-            this.scene.player.hp--;
-            this.scene.player.setTint(0xff0000);
-            this.scene.time.delayedCall(100, () => this.scene.player.clearTint());
+        const player = this.scene.player;
+        if (player && player.active) {
+            const dist = Phaser.Math.Distance.Between(x, y, player.x, player.y);
+            if (dist < radius && !player.invulnerable) {
+                player.hp--;
+                player.setTint(0xff0000);
+                this.scene.time.delayedCall(100, () => player.clearTint());
+            }
         }
 
         this.scene.enemies.children.iterate(enemy => {
             if (!enemy.active) return;
             if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) < radius) {
-                enemy.takeDamage(2);
+                enemy.takeDamage?.(2);
             }
         });
     }
+
+
 
 
 }
