@@ -75,6 +75,7 @@ export class Arena1_New_Multi extends Map {
         // 9) Multiplayer socket wiring
         this.setupMultiplayer();
         socket.emit("player-joined");
+        socket.emit("joinGame", { x: 400, y: 200 }); // or wherever you want to spawn the player
 
         console.log("Multiplayer registered animations:", this.anims.anims.keys());
     }
@@ -145,6 +146,19 @@ export class Arena1_New_Multi extends Map {
             });
         });
 
+        socket.on('currentPlayers', (players) => {
+            for (const id in players) {
+                if (id !== socket.id) {
+                    this.addOtherPlayer(players[id]); // function to add other players
+                }
+            }
+        });
+
+        socket.on('playerJoined', (playerData) => {
+            this.addOtherPlayer(playerData);
+        });
+
+
         socket.on("playerAttack", ({ playerId, direction }) => {
             const p = this.frontendPlayers[playerId];
             if (!p) return;
@@ -161,6 +175,15 @@ export class Arena1_New_Multi extends Map {
             p.setPosition(data.x, data.y);
             p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
         });
+
+        socket.on("removePlayer", (id) => {
+            const player = this.frontendPlayers[id];
+            if (player) {
+                player.destroy();
+                delete this.frontendPlayers[id];
+            }
+        });
+
 
         // Spawn puppet on first sight
         socket.on("spawnEnemy", (data) => {

@@ -146,7 +146,8 @@ export class WeatherEffectManager {
             if (!this.isMultiplayer)
                 this.scene.player.slipping = false; // Reset player state
             else {
-                this.scene.frontendPlayers[window.socket.id].slipping = false;
+                if (this.scene.frontendPlayers[window.socket.id])
+                    this.scene.frontendPlayers[window.socket.id].slipping = false;
             }
         }
 
@@ -156,7 +157,8 @@ export class WeatherEffectManager {
 
         // Reset speeds back to normal
         if (this.isMultiplayer) {
-            this.scene.frontendPlayers[window.socket.id].speed = 250;
+            if (this.scene.frontendPlayers[window.socket.id])
+                this.scene.frontendPlayers[window.socket.id].speed = 250;
         } else if (this.scene.player) this.scene.player.speed = this.scene.player.baseSpeed || 250;
         this.scene.enemies.children.iterate(enemy => {
             if (enemy.chaseSpeed && enemy.baseChaseSpeed) enemy.chaseSpeed = enemy.baseChaseSpeed;

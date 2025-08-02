@@ -130,8 +130,29 @@ io.on('connection', (socket) => {
     socket.on("readyForPlayers", () => {
         socket.emit("updatePlayers", backendPlayers);
         socket.broadcast.emit("updatePlayers", backendPlayers);
+        socket.emit("weatherUpdate", { code: currentWeatherCode });
         socket.emit("startNextLevel", { currentLevel, levelTime });
     });
+
+    socket.on('joinGame', (playerData) => {
+        backendPlayers[socket.id] = {
+            id: socket.id,
+            x: playerData.x,
+            y: playerData.y,
+            hp: 5,
+            isDead: false,
+            direction: 'down',
+        };
+
+        // 1️⃣ Send the new player all existing players
+        socket.emit('currentPlayers', backendPlayers);
+
+        // 2️⃣ Notify all others about this new player
+        socket.broadcast.emit('playerJoined', backendPlayers[socket.id]);
+
+        console.log(`Player joined: ${socket.id}`);
+    });
+
 
     socket.on("disconnect", (reason) => {
         console.log(`Player disconnected: ${socket.id}`);
@@ -179,6 +200,7 @@ io.on('connection', (socket) => {
         levelTime = 30;
         spawnLoopStarted = false;
 
+        socket.broadcast.emit("removePlayer", socket.id);
         io.emit("gameOver");
 
     });
