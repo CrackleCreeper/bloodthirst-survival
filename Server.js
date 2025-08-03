@@ -23,6 +23,7 @@ let backendEnemies = {};
 const readyPlayers = new Set();
 let currentWeather = null;
 let currentWeatherCode = null;
+let mysteryCrystals = []; // [{id, x, y, type}]
 
 let currentLevel = 1;
 let levelTime = 30; // in seconds
@@ -226,6 +227,58 @@ io.on('connection', (socket) => {
         }
 
         io.emit("lightningStrike", { x, y }); // optional visual sync
+    });
+
+    socket.on("collectMysteryCrystal", ({ crystalId }) => {
+        const player = backendPlayers[socket.id];
+
+        const crystal = mysteryCrystals.find(c => c.id === crystalId);
+
+
+        if (!player || !crystal) return;
+
+        // Remove the crystal from server
+        mysteryCrystals = mysteryCrystals.filter(c => c.id !== crystalId);
+
+        io.emit("mysteryCrystalCollected", { crystalId });
+
+        const positive = ['massiveHeal', 'invincibility', 'speedFrenzy', 'multiAoE', 'clearEnemies'];
+        const negative = ['hpDrop', 'speedLoss', 'enemyWave', 'freezePlayer', 'flipControls'];
+
+        const isPositive = Math.random() < 0.5;
+        const effect = isPositive
+            ? positive[Math.floor(Math.random() * positive.length)]
+            : negative[Math.floor(Math.random() * negative.length)];
+
+        // Collector gets full effect
+        socket.emit("applyMysteryEffect", { playerId: socket.id, effect });
+
+        // Everyone else gets visual only
+        socket.broadcast.emit("applyMysteryEffect", { playerId: socket.id, effect });
+
+
+        // Optionally broadcast if the effect affects everyone
+        if (effect === 'clearEnemies') {
+            for (const id in backendEnemies) {
+                const e = backendEnemies[id];
+                if (!e.isDead) {
+                    e.isDead = true;
+                    io.emit("enemyKilled", { id });
+                }
+            }
+        } else if (effect === 'enemyWave') {
+            dynamicEnemySpawn();
+            dynamicEnemySpawn(); // spawn 2 waves
+        }
+
+        // Trigger backend logic like enemy spawning here if needed
+        io.emit("mysteryEffectVisual", {
+            x: player.x,
+            y: player.y,
+            text: getEffectLabel(effect),
+            color: isPositive ? "#00ff00" : "#ff0000"
+        });
+
     });
 
 
@@ -603,6 +656,44 @@ function startWaveSpawnerForLevel(io, level) {
         dynamicEnemySpawn();
     }, delay);
 }
+
+// -- Mystery Crystals --
+
+function spawnMysteryCrystal() {
+    const id = crypto.randomUUID(); // or any unique ID generator
+    const x = getRandomBetween(100, 1000); // ✅ Replace Phaser.Math.Between
+    const y = getRandomBetween(100, 800);
+
+    const crystal = { id, x, y };
+    mysteryCrystals.push(crystal);
+    console.log("Spawning")
+    io.emit("mysteryCrystalSpawn", crystal);
+}
+
+function getRandomBetween(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getEffectLabel(effect) {
+    switch (effect) {
+        case 'massiveHeal': return 'Massive Heal!';
+        case 'invincibility': return 'Invincibility!';
+        case 'speedFrenzy': return 'Speed++';
+        case 'multiAoE': return 'AoE Blast!';
+        case 'clearEnemies': return 'Enemies Cleared!';
+        case 'hpDrop': return 'HP -2';
+        case 'speedLoss': return 'Speed--';
+        case 'freezePlayer': return 'Freeze';
+        case 'flipControls': return 'Controls Flipped!';
+        case 'enemyWave': return 'Enemy Wave!';
+        default: return 'Mystery!';
+    }
+}
+
+
+
+// call this on interval:
+setInterval(spawnMysteryCrystal, 5000);
 
 // -- Update loop --
 let lastTime = Date.now();

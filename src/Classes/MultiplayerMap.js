@@ -2,6 +2,7 @@ import { ApiManager } from './ApiManager.js';
 import { Map } from './Map.js';
 import { io } from 'socket.io-client';
 import { WeatherEffectManager } from './WeatherEffectManager.js';
+import MysteryCrystal from './MysteryCrystal.js';
 const socket = io('http://localhost:3000', {
     transports: ['websocket']
 });
@@ -70,6 +71,7 @@ export class Arena1_New_Multi extends Map {
         this.gameOver = false;
         this.apiManager = new ApiManager(this);
         this.weatherManager = new WeatherEffectManager(this, this.apiManager, true);
+        this.mysteryCrystals = this.physics.add.group();
 
 
         // 9) Multiplayer socket wiring
@@ -317,6 +319,44 @@ export class Arena1_New_Multi extends Map {
             this.showGameOverScreen?.();
         });
 
+        socket.on("mysteryCrystalSpawn", ({ id, x, y }) => {
+            const crystal = new MysteryCrystal(this, x, y);
+            crystal.crystalId = id;
+            this.mysteryCrystals.add(crystal);
+            const localPlayer = this.frontendPlayers[socket.id];
+            if (localPlayer) {
+                this.physics.add.overlap(localPlayer, crystal, () => {
+                    socket.emit("collectMysteryCrystal", { crystalId: id });
+                });
+            }
+
+        });
+
+        socket.on("mysteryCrystalCollected", ({ crystalId }) => {
+            this.mysteryCrystals.children.iterate(crystal => {
+                if (!crystal) return;
+                if (crystal.crystalId === crystalId) crystal.destroy();
+            });
+        });
+
+        socket.on("applyMysteryEffect", ({ playerId, effect }) => {
+            const p = this.frontendPlayers[playerId];
+            if (!p) return;
+            const localOnlyEffects = ['flipControls', 'freezePlayer', 'hpDrop', 'massiveHeal', 'invincibility', 'speedFrenzy', 'speedLoss'];
+
+            if (playerId === socket.id) {
+                this.applyMysteryEffect(p, effect);  // Full effect with logic + visuals
+            } else {
+                console.log("Applying visuals")
+                this.applyMysteryVisualOnly(p, effect);  // Just show tint, animation, circle, etc.
+            }
+        });
+
+        socket.on("mysteryEffectVisual", ({ x, y, text, color }) => {
+            this.showFloatingText(x, y, text, color);
+        });
+
+
         socket.on("levelTimerUpdate", ({ remaining, currentLevel }) => {
             this.timerText.setText(`Time Left: ${remaining}`);
             this.currentLevelText.setText(`Level: ${currentLevel}`);
@@ -378,6 +418,11 @@ export class Arena1_New_Multi extends Map {
         if (socket.connected) socket.emit("readyForPlayers");
     }
 
+    addOtherPlayer(playerData) {
+        // No-op or delegate to updatePlayers if needed
+    }
+
+
     update(time, delta) {
         // super.update(time, delta);
 
@@ -415,20 +460,40 @@ export class Arena1_New_Multi extends Map {
             let moving = false;
 
             if (this.A.isDown) {
-                myPlayer.setVelocity(-speed, 0);
-                direction = "left";
+                if (!myPlayer.flippedControls) {
+                    myPlayer.setVelocity(-speed, 0);
+                    direction = "left";
+                } else {
+                    myPlayer.setVelocity(+speed, 0);
+                    direction = "right";
+                }
                 moving = true;
             } else if (this.D.isDown) {
-                myPlayer.setVelocity(speed, 0);
-                direction = "right";
+                if (!myPlayer.flippedControls) {
+                    myPlayer.setVelocity(speed, 0);
+                    direction = "right";
+                } else {
+                    myPlayer.setVelocity(-speed, 0);
+                    direction = "left";
+                }
                 moving = true;
             } else if (this.W.isDown) {
-                myPlayer.setVelocity(0, -speed);
-                direction = "up";
+                if (!myPlayer.flippedControls) {
+                    myPlayer.setVelocity(0, -speed);
+                    direction = "up";
+                } else {
+                    myPlayer.setVelocity(0, speed);
+                    direction = "down";
+                }
                 moving = true;
             } else if (this.S.isDown) {
-                myPlayer.setVelocity(0, speed);
-                direction = "down";
+                if (!myPlayer.flippedControls) {
+                    myPlayer.setVelocity(0, speed);
+                    direction = "down";
+                } else {
+                    myPlayer.setVelocity(0, -speed);
+                    direction = "up";
+                }
                 moving = true;
             } else {
                 myPlayer.setVelocity(0, 0);
@@ -468,6 +533,193 @@ export class Arena1_New_Multi extends Map {
         }
 
     }
+
+    applyMysteryEffect(player, effect) {
+        console.log(`Mystery Effect: ${effect}`);
+        const isPositive = ['massiveHeal', 'invincibility', 'speedFrenzy', 'multiAoE', 'clearEnemies'].includes(effect);
+        let text = 'idk';
+
+        switch (effect) {
+            case 'massiveHeal':
+                text = 'Massive Heal!';
+                player.hp = Math.min(5, player.hp + 3);
+                if (player.playerId === socket.id) this.hpText.setText(`HP: ${player.hp}`);
+                break;
+
+            case 'invincibility':
+                text = 'Invincibility!';
+                player.invulnerable = true;
+                this.tweens.add({
+                    targets: player,
+                    alpha: 0,
+                    ease: 'Linear',
+                    duration: 200,
+                    repeat: 14,
+                    yoyo: true,
+                    onComplete: () => {
+                        player.alpha = 1;
+                        player.invulnerable = false;
+                    }
+                });
+                break;
+
+            case 'speedFrenzy':
+                text = 'Speed++';
+                player.speed = player.baseSpeed + 200;
+
+                const colors = [0x00ffff, 0xff00ff, 0xffff00, 0xff6600];
+                let colorIndex = 0;
+
+                const colorTween = this.time.addEvent({
+                    delay: 150,
+                    callback: () => {
+                        player.setTint(colors[colorIndex]);
+                        colorIndex = (colorIndex + 1) % colors.length;
+                    },
+                    loop: true
+                });
+
+                this.time.delayedCall(7000, () => {
+                    player.speed = player.baseSpeed;
+                    player.clearTint();
+                    colorTween.remove();
+                });
+                break;
+
+            case 'multiAoE':
+                if (player.playerId !== socket.id) break; // Only apply to local collector
+                text = 'AoE Blast!';
+                for (let i = 0; i < 5; i++) {
+                    const { x, y } = player; // snapshot safe coords
+                    this.time.delayedCall(i * 1000, () => this.triggerAoEBlast({ x, y }));
+                }
+                break;
+
+
+
+            case 'clearEnemies':
+                text = 'Enemies Cleared!';
+                this.enemies.children.iterate(enemy => enemy?.destroy?.());
+                break;
+
+            case 'hpDrop':
+                text = 'HP -2';
+                player.hp = Math.max(0, player.hp - 2);
+                if (player.playerId === socket.id) this.hpText.setText(`HP: ${player.hp}`);
+                break;
+
+            case 'speedLoss':
+                text = 'Speed--';
+                player.speed = Math.max(50, player.speed - 100);
+                const pulseTween = this.tweens.add({
+                    targets: player,
+                    duration: 500,
+                    repeat: -1,
+                    yoyo: true,
+                    tint: { from: 0xffffff, to: 0x3399ff }
+                });
+                this.time.delayedCall(7000, () => {
+                    player.speed += 100;
+                    player.clearTint();
+                    pulseTween.stop();
+                });
+                break;
+
+            case 'freezePlayer':
+                text = 'Freeze';
+                player.setTint(0x9999ff);
+                player.frozen = true;
+                this.time.delayedCall(3000, () => {
+                    player.frozen = false;
+                    player.clearTint();
+                });
+                break;
+
+            case 'flipControls':
+                text = 'Controls Flipped!';
+                player.flippedControls = true;
+                player.setTint(0xff00ff);
+                this.time.delayedCall(7000, () => {
+                    player.flippedControls = false;
+                    player.clearTint();
+                });
+                break;
+            case 'enemyWave':
+                text = "Enemy Wave!";
+                break;
+            case 'clearEnemies':
+                text = "Enemies Cleared!";
+                break;
+        }
+
+        this.sound.play('shard_collect', { volume: 0.5 });
+        this.showFloatingText(player.x, player.y, text, isPositive ? '#00ff00' : '#ff0000');
+
+    }
+
+    applyMysteryVisualOnly(player, effect) {
+        switch (effect) {
+            case 'multiAoE':
+                const { x, y } = player; // snapshot now
+                for (let i = 0; i < 5; i++) {
+                    this.time.delayedCall(i * 1000, () => this.spawnAoECircle(x, y));
+                }
+                break;
+
+
+            case 'clearEnemies':
+                this.showFloatingText(player.x, player.y, 'Enemies Cleared!', '#00ff00');
+                break;
+
+            case 'enemyWave':
+                this.showFloatingText(player.x, player.y, 'Enemy Wave!', '#ff0000');
+                break;
+
+            case 'massiveHeal':
+                this.showFloatingText(player.x, player.y, '+3 HP', '#ff3333');
+                break;
+
+            case 'invincibility':
+                this.tweens.add({
+                    targets: player,
+                    alpha: 0,
+                    ease: 'Linear',
+                    duration: 200,
+                    repeat: 14,
+                    yoyo: true,
+                    onComplete: () => {
+                        player.alpha = 1;
+                    }
+                });
+                break;
+
+            case 'speedFrenzy':
+                const colors = [0x00ffff, 0xff00ff, 0xffff00, 0xff6600];
+                let colorIndex = 0;
+                const colorTween = this.time.addEvent({
+                    delay: 150,
+                    callback: () => {
+                        player.setTint(colors[colorIndex]);
+                        colorIndex = (colorIndex + 1) % colors.length;
+                    },
+                    loop: true
+                });
+                this.time.delayedCall(7000, () => {
+                    player.clearTint();
+                    colorTween.remove();
+                });
+                break;
+        }
+    }
+
+    spawnAoECircle(x, y) {
+        if (typeof x !== 'number' || typeof y !== 'number') return;
+        const circle = this.add.circle(x, y, 100, 0xff3333, 0.3).setDepth(1000);
+        this.time.delayedCall(300, () => circle.destroy());
+    }
+
+
+
 
     showGameOverScreen() {
         const text = this.add.text(
