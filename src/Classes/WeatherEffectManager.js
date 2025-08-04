@@ -410,8 +410,6 @@ export class WeatherEffectManager {
             callback: () => {
                 const player = this.scene.player || this.scene.frontendPlayers?.[window.socket?.id];
 
-                if (!player.active) return;
-
                 // Prevent input during slip
                 player.slipping = true;
 

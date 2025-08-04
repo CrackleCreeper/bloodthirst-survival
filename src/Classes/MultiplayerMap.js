@@ -287,7 +287,7 @@ export class Arena1_New_Multi extends Map {
         socket.on("playerHit", ({ hp, knockback }) => {
             const me = this.frontendPlayers[socket.id];
             if (!me) return;
-
+            if (me.invulnerable) return;
             me.hp = hp;
             me.setTint(0xff0000);
             this.hpText.setText(`HP: ${Math.max(0, me.hp)}`);
@@ -295,7 +295,7 @@ export class Arena1_New_Multi extends Map {
 
             if (me.body) {
                 const kb = new Phaser.Math.Vector2(knockback.x, knockback.y).normalize().scale(200);
-                me.body.velocity.add(kb);
+                // me.body.velocity.add(kb);
             }
 
             this.time.delayedCall(100, () => me.clearTint());
@@ -590,12 +590,13 @@ export class Arena1_New_Multi extends Map {
                 if (player.playerId !== socket.id) break; // Only apply to local collector
                 text = 'AoE Blast!';
                 for (let i = 0; i < 5; i++) {
-                    const { x, y } = player; // snapshot safe coords
-                    this.time.delayedCall(i * 1000, () => this.triggerAoEBlast({ x, y }));
+                    this.time.delayedCall(i * 1000, () => {
+                        if (!player || player.isDead) return;
+                        this.triggerAoEBlast({ x: player.x, y: player.y });
+                    });
                 }
+
                 break;
-
-
 
             case 'clearEnemies':
                 text = 'Enemies Cleared!';
@@ -662,21 +663,25 @@ export class Arena1_New_Multi extends Map {
             case 'multiAoE':
                 const { x, y } = player; // snapshot now
                 for (let i = 0; i < 5; i++) {
-                    this.time.delayedCall(i * 1000, () => this.spawnAoECircle(x, y));
+                    this.time.delayedCall(i * 1000, () => {
+                        if (!player || player.isDead) return;
+                        this.spawnAoECircle(player.x, player.y);
+                    });
                 }
+
                 break;
 
 
             case 'clearEnemies':
-                this.showFloatingText(player.x, player.y, 'Enemies Cleared!', '#00ff00');
                 break;
 
             case 'enemyWave':
-                this.showFloatingText(player.x, player.y, 'Enemy Wave!', '#ff0000');
                 break;
 
             case 'massiveHeal':
-                this.showFloatingText(player.x, player.y, '+3 HP', '#ff3333');
+                break;
+            case 'freezePlayer':
+                player.setTint(0x9999ff);
                 break;
 
             case 'invincibility':
@@ -713,10 +718,26 @@ export class Arena1_New_Multi extends Map {
     }
 
     spawnAoECircle(x, y) {
-        if (typeof x !== 'number' || typeof y !== 'number') return;
+        if (typeof x !== 'number' || typeof y !== 'number') {
+            console.warn("Invalid AoE coords:", x, y);
+            return;
+        }
         const circle = this.add.circle(x, y, 100, 0xff3333, 0.3).setDepth(1000);
         this.time.delayedCall(300, () => circle.destroy());
     }
+
+    triggerAoEBlast({ x, y }) {
+        console.log('AoE blast triggered!');
+        const blastRadius = 100;
+
+        // Visual effect only on client
+        const circle = this.add.circle(x, y, blastRadius, 0xff3333, 0.3).setDepth(1000);
+        this.time.delayedCall(300, () => circle.destroy());
+
+        // Tell server to apply AoE damage
+        socket.emit("aoeBlast", { x, y, radius: blastRadius });
+    }
+
 
 
 

@@ -154,6 +154,33 @@ io.on('connection', (socket) => {
         console.log(`Player joined: ${socket.id}`);
     });
 
+    socket.on("aoeBlast", ({ x, y, radius }) => {
+        const player = backendPlayers[socket.id];
+        if (!player || player.isDead) return;
+
+        console.log(`[Server] AoE from ${socket.id} at (${x}, ${y})`);
+
+        for (const enemy of Object.values(backendEnemies)) {
+            const dist = Math.hypot(enemy.x - x, enemy.y - y);
+            if (dist <= radius && !enemy.isDead) {
+                const died = applyDamageToEnemy(enemy, 3);// keep your existing usage
+
+                if (!died) {
+                    io.emit("enemyHit", { id: enemy.id, hp: enemy.hp });
+                }
+
+                if (died) {
+                    // broadcast to all so their puppet gets destroyed
+                    io.emit("enemyKilled", { id: enemy.id });
+                    delete backendEnemies[enemy.id];
+                }
+            }
+        }
+    });
+
+
+
+
 
     socket.on("disconnect", (reason) => {
         console.log(`Player disconnected: ${socket.id}`);
@@ -251,10 +278,10 @@ io.on('connection', (socket) => {
             : negative[Math.floor(Math.random() * negative.length)];
 
         // Collector gets full effect
-        socket.emit("applyMysteryEffect", { playerId: socket.id, effect });
+        socket.emit("applyMysteryEffect", { playerId: socket.id, effect: "multiAoE" });
 
         // Everyone else gets visual only
-        socket.broadcast.emit("applyMysteryEffect", { playerId: socket.id, effect });
+        socket.broadcast.emit("applyMysteryEffect", { playerId: socket.id, effect: "multiAoE" });
 
 
         // Optionally broadcast if the effect affects everyone
