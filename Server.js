@@ -193,7 +193,6 @@ io.on('connection', (socket) => {
         console.log(`[GAME OVER] Player ${socket.id} disconnected. Ending game.`);
         stopAllTimersAndWaves();
         backendEnemies = {};
-        backendPlayers = {};
         currentLevel = 1;
         levelTime = 30;
 
@@ -240,8 +239,13 @@ io.on('connection', (socket) => {
             const p = backendPlayers[playerId];
             const dist = Math.hypot(p.x - x, p.y - y);
             if (dist < radius && !p.invulnerable) {
-                p.hp--;
-                io.to(playerId).emit("playerHitByLightning", { x, y });
+                p.hp -= 2;
+                if (p.hp <= 0) {
+                    console.log(`Enemy killed a player.`)
+                    p.isDead = true;
+                    io.emit("playerDied");
+
+                }
             }
         }
 
@@ -249,7 +253,17 @@ io.on('connection', (socket) => {
             const e = backendEnemies[enemyId];
             const dist = Math.hypot(e.x - x, e.y - y);
             if (dist < radius) {
-                e.takeDamage?.(2);
+                const died = applyDamageToEnemy(e, 2);// keep your existing usage
+
+                if (!died) {
+                    io.emit("enemyHit", { id: e.id, hp: e.hp });
+                }
+
+                if (died) {
+                    // broadcast to all so their puppet gets destroyed
+                    io.emit("enemyKilled", { id: e.id });
+                    delete backendEnemies[e.id];
+                }
             }
         }
 
