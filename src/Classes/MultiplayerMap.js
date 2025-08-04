@@ -80,6 +80,9 @@ export class Arena1_New_Multi extends Map {
         socket.emit("joinGame", { x: 400, y: 200 }); // or wherever you want to spawn the player
 
         console.log("Multiplayer registered animations:", this.anims.anims.keys());
+
+        // Debug
+        // this.physics.world.createDebugGraphic();
     }
 
 
@@ -219,6 +222,21 @@ export class Arena1_New_Multi extends Map {
                 const alpha = 0.35;
                 enemySprite.x = Phaser.Math.Linear(enemySprite.x, enemyData.x, alpha);
                 enemySprite.y = Phaser.Math.Linear(enemySprite.y, enemyData.y, alpha);
+
+                // Debug Rectangle for enemies
+                // Draw a debug rectangle
+                // if (!enemySprite.debugRect) {
+                //     enemySprite.debugRect = this.add.graphics().setDepth(10000);
+                // }
+                // enemySprite.debugRect.clear();
+                // enemySprite.debugRect.lineStyle(1, 0xff0000);
+                // enemySprite.debugRect.strokeRect(
+                //     enemySprite.x - enemySprite.displayWidth * enemySprite.originX,
+                //     enemySprite.y - enemySprite.displayHeight * enemySprite.originY,
+                //     enemySprite.displayWidth,
+                //     enemySprite.displayHeight
+                // );
+
 
                 // play animation if available
                 // Only update animation if not locked

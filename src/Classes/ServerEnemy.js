@@ -138,10 +138,14 @@ export class ServerEnemy {
             const dx = closest.x - this.x;
             const dy = closest.y - this.y;
             const dist = Math.hypot(dx, dy);
-            if (dist > 0.001) {
+            const attackBuffer = 4; // to keep a small gap from exact edge
+
+            if (dist > this.attackRange - attackBuffer) {
+                // move toward player
                 const vx = (dx / dist) * this.chaseSpeed * (deltaTime / 1000);
                 const vy = (dy / dist) * this.chaseSpeed * (deltaTime / 1000);
-                this.x += vx; this.y += vy;
+                this.x += vx;
+                this.y += vy;
 
                 this.gridX = Math.floor(this.x / this.tileSize);
                 this.gridY = Math.floor(this.y / this.tileSize);
@@ -149,7 +153,12 @@ export class ServerEnemy {
 
                 this.state = (dist < 5 * this.tileSize) ? 'run' : 'walk';
                 this.currentAnim = `${this.type}_${this.state}_${this.facing}`;
+            } else {
+                // close enough — idle & prepare attack
+                this.state = 'idle';
+                this.currentAnim = `${this.type}_idle_${this.facing}`;
             }
+
 
         } else if (inMemory) {
             // ===== B) MEMORY CHASE — pathfind to lastSeenPos

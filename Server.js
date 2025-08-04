@@ -81,8 +81,8 @@ io.on('connection', (socket) => {
             startMysteryCrystalSpawner();
             spawnLoopStarted = true;
 
-            currentWeatherCode = generateWeatherCode(currentLevel);
-            io.emit("weatherUpdate", { code: currentWeatherCode });
+            // currentWeatherCode = generateWeatherCode(currentLevel);
+            // io.emit("weatherUpdate", { code: currentWeatherCode });
         }
     });
     socket.on("playerReady", () => {
