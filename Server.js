@@ -78,6 +78,7 @@ io.on('connection', (socket) => {
             startWaveSpawnerForLevel(io, currentLevel);
 
             startLevelTimer(io); // ✅ Add this
+            startMysteryCrystalSpawner();
             spawnLoopStarted = true;
 
             currentWeatherCode = generateWeatherCode(currentLevel);
@@ -292,10 +293,10 @@ io.on('connection', (socket) => {
             : negative[Math.floor(Math.random() * negative.length)];
 
         // Collector gets full effect
-        socket.emit("applyMysteryEffect", { playerId: socket.id, effect: "multiAoE" });
+        socket.emit("applyMysteryEffect", { playerId: socket.id, effect });
 
         // Everyone else gets visual only
-        socket.broadcast.emit("applyMysteryEffect", { playerId: socket.id, effect: "multiAoE" });
+        socket.broadcast.emit("applyMysteryEffect", { playerId: socket.id, effect });
 
 
         // Optionally broadcast if the effect affects everyone
@@ -313,7 +314,7 @@ io.on('connection', (socket) => {
         }
 
         // Trigger backend logic like enemy spawning here if needed
-        io.emit("mysteryEffectVisual", {
+        socket.broadcast.emit("mysteryEffectVisual", {
             x: player.x,
             y: player.y,
             text: getEffectLabel(effect),
@@ -702,14 +703,37 @@ function startWaveSpawnerForLevel(io, level) {
 
 function spawnMysteryCrystal() {
     const id = crypto.randomUUID(); // or any unique ID generator
-    const x = getRandomBetween(100, 1000); // ✅ Replace Phaser.Math.Between
-    const y = getRandomBetween(100, 800);
-
+    const tile = getRandomValidTile();
+    const { x, y } = tile;
     const crystal = { id, x, y };
     mysteryCrystals.push(crystal);
     console.log("Spawning")
     io.emit("mysteryCrystalSpawn", crystal);
 }
+
+function startMysteryCrystalSpawner() {
+    const initialInterval = 50000; // 50 seconds
+    const minInterval = 20000;     // never below 20s
+    const duration = 4 * 60 * 1000; // 4 minutes ramp
+    let startTime = Date.now();
+
+    async function loop() {
+        if (stopLoop) return;
+
+        spawnMysteryCrystal();
+
+        const elapsed = Date.now() - startTime;
+        const nextDelay = Math.max(
+            minInterval,
+            initialInterval - ((initialInterval - minInterval) * (elapsed / duration))
+        );
+
+        setTimeout(loop, nextDelay);
+    }
+
+    loop(); // start the loop
+}
+
 
 function getRandomBetween(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -730,11 +754,6 @@ function getEffectLabel(effect) {
         default: return 'Mystery!';
     }
 }
-
-
-
-// call this on interval:
-setInterval(spawnMysteryCrystal, 5000);
 
 // -- Update loop --
 let lastTime = Date.now();

@@ -110,7 +110,7 @@ export class Map extends Phaser.Scene {
         });
 
         this.mysteryCrystalLoop = this.time.addEvent({
-            delay: 50 * 1000, // every 15 seconds or so
+            delay: 50 * 1000, // every 50 seconds or so
             loop: true,
             callback: () => this.spawnMysteryCrystal()
         });
