@@ -64,9 +64,10 @@ export class StartScene extends Phaser.Scene {
 
         // Buttons
         this.createStyledButton(this.scale.width / 2, buttonsStartY, "SINGLEPLAYER", "#ff3333", "Arena1_New", false);
-        this.createStyledButton(this.scale.width / 2, buttonsStartY + 80, "MULTIPLAYER", "#3366ff", "Arena1_New_Multi", true);
+        this.createStyledButton(this.scale.width / 2, buttonsStartY + 80, "CREATE A ROOM", "#3366ff", "LobbyScene", true);
 
-        this.createStyledButton(this.scale.width / 2, buttonsStartY + 160, "SETTINGS", "#ffaa00", "SettingsScene");
+        this.createStyledButton(this.scale.width / 2, buttonsStartY + 160, "JOIN A ROOM", "#ffaa00", "LobbyScene", true, false);
+
 
         this.createFloatingEmbers();
 
@@ -117,7 +118,7 @@ export class StartScene extends Phaser.Scene {
         particles.setDepth(-1);
     }
 
-    createStyledButton(x, y, text, color, targetScene, isMultiplayer = false) {
+    createStyledButton(x, y, text, color, targetScene, isMultiplayer = false, isCreator = true) {
         const bg = this.add.graphics();
         bg.fillStyle(0x000000, 0.7);
         bg.fillRoundedRect(-120, -25, 240, 50, 25);
@@ -171,13 +172,14 @@ export class StartScene extends Phaser.Scene {
                     this.time.delayedCall(600, () => {
                         if (isMultiplayer) {
                             setMultiplayerMode(true);
+                            this.scene.start("LobbyScene", { isCreator });
                         } else {
                             setMultiplayerMode(false);
+                            this.sound.stopAll();
+                            this.cameras.main.fadeOut(500, 0, 0, 0);
+                            this.time.delayedCall(500, () => this.scene.start("LoadingScene", { nextScene: targetScene }));
                         }
 
-                        this.sound.stopAll();
-                        this.cameras.main.fadeOut(500, 0, 0, 0);
-                        this.time.delayedCall(500, () => this.scene.start("LoadingScene", { nextScene: targetScene }));
                     });
                 }
             });

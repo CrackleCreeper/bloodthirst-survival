@@ -18,6 +18,7 @@ const io = new Server(server, {
 app.use(cors({ origin: 'http://localhost:5173' }));
 
 // State
+const rooms = {};
 let backendPlayers = {};
 let backendEnemies = {};
 const readyPlayers = new Set();
@@ -422,13 +423,84 @@ io.on('connection', (socket) => {
 
 
 
+
         // Still broadcast the attack animation to OTHER clients
         socket.broadcast.emit("playerAttack", { playerId, direction: face });
     });
 
+    socket.on('createRoom', () => {
+
+        const roomCode = generateRoomCode();
+        console.log("roomCreated", roomCode)
+        rooms[roomCode] = {
+            players: [socket.id],
+            ready: {}
+        };
+        socket.join(roomCode);
+        socket.emit('roomCreated', roomCode);
+        console.log(`Room ${roomCode} created by ${socket.id}`);
+    });
+
+    // JOIN ROOM
+    socket.on('joinRoom', (roomCode) => {
+        const room = rooms[roomCode];
+        if (!room) {
+            socket.emit('joinError', 'Room not found');
+            return;
+        }
+
+        if (room.players.length >= 2) {
+            socket.emit('joinError', 'Room is full');
+            return;
+        }
+
+        room.players.push(socket.id);
+        socket.join(roomCode);
+        io.to(roomCode).emit('playerJoined', room.players);
+        console.log(`Socket ${socket.id} joined room ${roomCode}`);
+    });
+
+    // PLAYER READY
+    socket.on('playerReady', (roomCode) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+
+        room.ready[socket.id] = true;
+
+        const allReady = room.players.length === 2 && room.players.every(id => room.ready[id]);
+        if (allReady) {
+            io.to(roomCode).emit('startGame');
+            console.log(`Starting game in room ${roomCode}`);
+        }
+    });
+
+    // HANDLE DISCONNECT
+    socket.on('disconnect', () => {
+        for (const [roomCode, room] of Object.entries(rooms)) {
+            const index = room.players.indexOf(socket.id);
+            if (index !== -1) {
+                room.players.splice(index, 1);
+                delete room.ready[socket.id];
+                io.to(roomCode).emit('playerLeft', socket.id);
+                console.log(`Socket ${socket.id} left room ${roomCode}`);
+
+                if (room.players.length === 0) {
+                    delete rooms[roomCode];
+                    console.log(`Room ${roomCode} deleted`);
+                }
+            }
+        }
+    });
+
+
 
 
 });
+
+// -- ROOM LOGIC --
+function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 6).toUpperCase(); // e.g. 'ABCD'
+}
 
 // --- ENEMY LOGIC ---
 function generateUniqueEnemyId() {

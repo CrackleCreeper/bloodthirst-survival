@@ -4,9 +4,7 @@ import { io } from 'socket.io-client';
 import { WeatherEffectManager } from './WeatherEffectManager.js';
 import MysteryCrystal from './MysteryCrystal.js';
 import BloodCrystal from './BloodCrystal.js';
-const socket = io('http://localhost:3000', {
-    transports: ['websocket']
-});
+import { socket } from "./Socket.js";
 window.socket = socket; // Expose socket globally for debugging
 
 export class Arena1_New_Multi extends Map {
