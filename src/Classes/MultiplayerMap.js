@@ -3,6 +3,7 @@ import { Map } from './Map.js';
 import { io } from 'socket.io-client';
 import { WeatherEffectManager } from './WeatherEffectManager.js';
 import MysteryCrystal from './MysteryCrystal.js';
+import BloodCrystal from './BloodCrystal.js';
 const socket = io('http://localhost:3000', {
     transports: ['websocket']
 });
@@ -72,7 +73,7 @@ export class Arena1_New_Multi extends Map {
         this.apiManager = new ApiManager(this);
         this.weatherManager = new WeatherEffectManager(this, this.apiManager, true);
         this.mysteryCrystals = this.physics.add.group();
-
+        this.bloodCrystals = this.physics.add.group();
 
         // 9) Multiplayer socket wiring
         this.setupMultiplayer();
@@ -88,6 +89,8 @@ export class Arena1_New_Multi extends Map {
 
 
     setupMultiplayer() {
+        socket.removeAllListeners(); // Prevent duplicate listeners after restart
+
         this.players = this.physics.add.group();
         this.frontendPlayers = {};
         this.socket = socket;
@@ -350,12 +353,39 @@ export class Arena1_New_Multi extends Map {
 
         });
 
+        socket.on("bloodCrystalSpawn", ({ id, x, y, type }) => {
+            const time = (10 / 11) * 1000;
+            this.time.delayedCall(time, () => {
+                const crystal = new BloodCrystal(this, x, y, type);
+                crystal.crystalId = id;
+                crystal.collected = false; // <-- ✅ ADD THIS FLAG
+                this.bloodCrystals.add(crystal);
+
+                const localPlayer = this.frontendPlayers[socket.id];
+                if (localPlayer) {
+                    this.physics.add.overlap(localPlayer, crystal, () => {
+                        if (crystal.collected) return; // <-- ✅ PREVENT MULTIPLE TRIGGERS
+                        crystal.collected = true;
+                        socket.emit("collectBloodCrystal", { crystalId: id, type });
+                    });
+                }
+            });
+        });
+
+
         socket.on("mysteryCrystalCollected", ({ crystalId }) => {
             this.mysteryCrystals.children.iterate(crystal => {
                 if (!crystal) return;
                 if (crystal.crystalId === crystalId) crystal.destroy();
             });
         });
+
+        socket.on("bloodCrystalCollected", ({ crystalId }) => {
+            this.bloodCrystals.children.iterate(crystal => {
+                if (!crystal) return;
+                if (crystal.crystalId === crystalId) crystal.destroy();
+            });
+        })
 
         socket.on("applyMysteryEffect", ({ playerId, effect }) => {
             const p = this.frontendPlayers[playerId];
@@ -369,6 +399,16 @@ export class Arena1_New_Multi extends Map {
                 this.applyMysteryVisualOnly(p, effect);  // Just show tint, animation, circle, etc.
             }
         });
+
+        socket.on("applyBloodCrystalEffect", ({ playerId, type }) => {
+
+            const p = this.frontendPlayers[playerId];
+            if (!p) return;
+            if (playerId === socket.id) {
+                this.applyBloodEffect(p, type, playerId);  // Full effect with logic + visuals
+            }
+
+        })
 
         socket.on("mysteryEffectVisual", ({ x, y, text, color }) => {
             this.showFloatingText(x, y, text, color);
@@ -562,6 +602,7 @@ export class Arena1_New_Multi extends Map {
                 text = 'Massive Heal!';
                 player.hp = Math.min(5, player.hp + 3);
                 if (player.playerId === socket.id) this.hpText.setText(`HP: ${player.hp}`);
+                socket.emit("updatePlayerHP", { hp: player.hp });
                 break;
 
             case 'invincibility':
@@ -756,6 +797,50 @@ export class Arena1_New_Multi extends Map {
         socket.emit("aoeBlast", { x, y, radius: blastRadius });
     }
 
+    applyBloodEffect(player, type, playerId) {
+        const isLocal = socket.id === playerId;
+
+        this.sound.play('shard_collect', { volume: 0.5 });
+
+        switch (type) {
+            case "Vampire1": {
+                player.hp = Math.min(player.hp + 1, 5);
+                if (isLocal) this.hpText.setText(`HP: ${player.hp}`);
+                this.showFloatingText(player.x, player.y, '+1 HP', '#ff3333');
+                socket.emit("updatePlayerHP", { hp: player.hp });
+                break;
+            }
+
+            case "Vampire2": {
+                player.speed += 100;
+                this.showFloatingText(player.x, player.y, 'Speed Up!', '#ff8800');
+                this.time.delayedCall(10 * 1000, () => {
+                    player.speed -= 100;
+                });
+                break;
+            }
+
+            case "Vampire3": {
+                if (this.level <= 4) {
+                    player.attackMultiplier = 2;
+                    this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
+                    this.time.delayedCall(5000, () => {
+                        player.attackMultiplier = 1;
+                    });
+                } else {
+                    this.showFloatingText(player.x, player.y, 'Blast!', '#ff4444');
+                    if (isLocal)
+                        this.triggerAoEBlast({ x: player.x, y: player.y }); // ✅ CORRECTED ARGUMENT
+                    else
+                        this.spawnAoECircle(player.x, player.y);
+                }
+                break;
+            }
+
+            default:
+                console.warn("Unknown blood crystal type:", type);
+        }
+    }
 
 
 

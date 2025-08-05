@@ -24,6 +24,7 @@ const readyPlayers = new Set();
 let currentWeather = null;
 let currentWeatherCode = null;
 let mysteryCrystals = []; // [{id, x, y, type}]
+let bloodCrystals = [];
 
 let currentLevel = 1;
 let levelTime = 30; // in seconds
@@ -233,6 +234,14 @@ io.on('connection', (socket) => {
 
     });
 
+    socket.on("updatePlayerHP", ({ hp }) => {
+        const player = backendPlayers[socket.id];
+        if (player) {
+            player.hp = hp;
+        }
+    });
+
+
     socket.on("lightningStrikeRequest", ({ x, y }) => {
         const radius = 50;
 
@@ -323,6 +332,48 @@ io.on('connection', (socket) => {
 
     });
 
+    socket.on("collectBloodCrystal", ({ crystalId, type }) => {
+        const player = backendPlayers[socket.id];
+        const crystal = bloodCrystals.find(c => c.id === crystalId);
+
+        if (!player || !crystal) return;
+
+        // Remove from server state
+        bloodCrystals = bloodCrystals.filter(c => c.id !== crystalId);
+
+        // Apply effect only to collector
+        socket.emit("applyBloodCrystalEffect", { playerId: socket.id, type });
+
+        // Broadcast visuals to all clients
+        io.emit("bloodCrystalCollected", { crystalId });
+
+        // Optional: show text pop above player
+        let text = "";
+        let color = "#ff0000ff"
+        switch (type) {
+            case "Vampire1":
+                text = "+1 HP";
+
+                break;
+            case "Vampire2":
+                text = " Speed Up!";
+                color = "#ff8800"
+                break;
+            case "Vampire3":
+                text = "Blast!";
+                color = "#ff4444";
+                break;
+
+        }
+        socket.broadcast.emit("mysteryEffectVisual", {
+            x: player.x,
+            y: player.y,
+            text: text,
+            color: color
+        });
+    });
+
+
 
 
     socket.on("playerAttack", ({ playerId, direction }) => {
@@ -364,6 +415,7 @@ io.on('connection', (socket) => {
             if (died) {
                 // broadcast to all so their puppet gets destroyed
                 io.emit("enemyKilled", { id: e.id });
+                spawnBloodCrystal(e.x, e.y, e.type);
                 delete backendEnemies[e.id];
             }
         }
@@ -734,9 +786,18 @@ function startMysteryCrystalSpawner() {
     loop(); // start the loop
 }
 
+// -- Blood Crystals --
+function spawnBloodCrystal(x, y, type) {
+    const id = crypto.randomUUID(); // or any unique ID generator
+    const crystal = { id, x, y, type: capitalizeFirstLetter(type) };
+    bloodCrystals.push(crystal);
+    console.log("Spawning Blood Crystal")
+    io.emit("bloodCrystalSpawn", crystal);
+}
 
-function getRandomBetween(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+
+function capitalizeFirstLetter(val) {
+    return String(val).charAt(0).toUpperCase() + String(val).slice(1);
 }
 
 function getEffectLabel(effect) {
