@@ -430,8 +430,9 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     setupSocketEvents() {
-        socket.on('roomCreated', (roomCode) => {
+        socket.on('roomCreated', ({ roomCode, player }) => {
             this.roomCode = roomCode;
+            this.host = player;
             this.roomCodeText.setText(`Room Code: ${roomCode}`);
             this.copyButton.setVisible(true);
         });
@@ -454,7 +455,8 @@ export class LobbyScene extends Phaser.Scene {
         socket.on('startGame', () => {
             this.scene.start("LoadingScene", {
                 nextScene: "Arena1_New_Multi",
-                roomCode: this.roomCode
+                roomCode: this.roomCode,
+                host: this.host
             });
         });
 

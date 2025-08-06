@@ -10,7 +10,7 @@ export class LoadingScene extends Phaser.Scene {
         this.progressBarBg = null;
         this.loadingTips = [
             "Stay alert - enemies can come from any direction",
-            "Collect blood orbs to increase your power",
+            "Kill enemies to get better stats - Tougher the opponent, better the reward!",
             "Use walls and obstacles for tactical advantage",
             "Your survival depends on quick reflexes",
             "The longer you survive, the stronger enemies become",
@@ -22,6 +22,7 @@ export class LoadingScene extends Phaser.Scene {
 
     init(data) {
         this.nextScene = data?.nextScene || "Arena1_New";
+        this.host = data?.host;
     }
 
 
@@ -305,7 +306,9 @@ export class LoadingScene extends Phaser.Scene {
             yoyo: true,
             onComplete: () => {
                 // Start the actual game scene
-                this.scene.start(this.nextScene);
+                this.scene.start(this.nextScene, {
+                    host: this.host
+                });
             }
         });
 
@@ -338,6 +341,12 @@ export class LoadingScene extends Phaser.Scene {
             this.load.spritesheet(`main_run_${dir}`, `assets/Sprite/Main/RUN/run_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
             this.load.spritesheet(`main_idle_${dir}`, `assets/Sprite/Main/IDLE/idle_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
             this.load.spritesheet(`main_attack_${dir}`, `assets/Sprite/Main/ATTACK/attack1_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
+        });
+
+        dirs.forEach(dir => {
+            this.load.spritesheet(`main2_run_${dir}`, `assets/Sprite/Main2/RUN/run_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
+            this.load.spritesheet(`main2_idle_${dir}`, `assets/Sprite/Main2/IDLE/idle_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
+            this.load.spritesheet(`main2_attack_${dir}`, `assets/Sprite/Main2/ATTACK/attack1_${dir}.png`, { frameWidth: 96, frameHeight: 80 });
         });
 
         // Load vampire 1

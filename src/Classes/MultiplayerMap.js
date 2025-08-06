@@ -22,6 +22,9 @@ export class Arena1_New_Multi extends Map {
             ]
         });
     }
+    init(data) {
+        this.hostId = data?.host;
+    }
 
     create() {
         // 1) Map + tilesets
@@ -45,7 +48,7 @@ export class Arena1_New_Multi extends Map {
         this.enemies = this.add.group();
 
         // 6) Ensure animations are loaded once
-        if (!this.anims.exists('player-idle-down')) {
+        if (!this.anims.exists('player-idle-down') || !this.anims.exists('player2-idle-down')) {
             this.loadPlayerAnimations(this);
             this.loadAnimations(this);
         }
@@ -100,7 +103,11 @@ export class Arena1_New_Multi extends Map {
 
                 if (!sprite) {
                     // create new player sprite
-                    const newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main_idle_down').setScale(1);
+                    let newPlayer;
+                    if (playerInfo.id == this.hostId)
+                        newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main_idle_down').setScale(1);
+                    else
+                        newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main2_idle_down').setScale(1);
                     newPlayer.playerId = playerInfo.id;
                     newPlayer.direction = "down";
                     newPlayer.setCollideWorldBounds(true);
@@ -128,6 +135,14 @@ export class Arena1_New_Multi extends Map {
                     }
 
                     this.frontendPlayers[playerInfo.id] = newPlayer;
+                    if (playerInfo.id == socket.id)
+                        this.playerNameText = this.add.text(newPlayer.x, newPlayer.y - 20, 'You', {
+                            font: '16px Arial',
+                            fill: '#ffffff',
+                            stroke: '#000000',
+                            strokeThickness: 2
+                        }).setOrigin(0.5).setAlpha(0.5).setDepth(1000);
+
                 } else {
 
                     if (playerInfo.id === socket.id && typeof playerInfo.hp === "number") {
@@ -137,7 +152,10 @@ export class Arena1_New_Multi extends Map {
                     // update existing
                     sprite.setPosition(playerInfo.x, playerInfo.y);
                     if (!sprite.anims.isPlaying || sprite.direction !== playerInfo.direction) {
-                        sprite.anims.play(`player-run-${playerInfo.direction}`, true);
+                        if (playerInfo.id == this.hostId)
+                            sprite.anims.play(`player-run-${playerInfo.direction}`, true);
+                        else
+                            sprite.anims.play(`player2-run-${playerInfo.direction}`, true);
                         sprite.direction = playerInfo.direction;
                     }
                 }
@@ -168,7 +186,10 @@ export class Arena1_New_Multi extends Map {
         socket.on("playerAttack", ({ playerId, direction }) => {
             const p = this.frontendPlayers[playerId];
             if (!p) return;
-            p.anims.play(`player-attack-${direction}`, true);
+            if (playerId == this.hostId)
+                p.anims.play(`player-attack-${direction}`, true);
+            else
+                p.anims.play(`player2-attack-${direction}`, true);
             p.isAttacking = true;
             this.time.delayedCall(400, () => { if (p) p.isAttacking = false; });
         });
@@ -179,7 +200,10 @@ export class Arena1_New_Multi extends Map {
             const p = this.frontendPlayers[data.playerId];
             if (!p) return;
             p.setPosition(data.x, data.y);
-            p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
+            if (data.playerId == this.hostId)
+                p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
+            else
+                p.anims.play(data.isMoving ? `player2-run-${data.direction}` : `player2-idle-${data.direction}`, true);
         });
 
         socket.on("removePlayer", (id) => {
@@ -584,6 +608,8 @@ export class Arena1_New_Multi extends Map {
                     this.lastSentY = y;
                     this.lastMoving = isMoving;
                     this.lastDirection = direction;
+                    this.playerNameText.setPosition(x, y - 20);
+
                 }
             }
         }

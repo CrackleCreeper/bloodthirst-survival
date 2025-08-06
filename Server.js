@@ -434,10 +434,10 @@ io.on('connection', (socket) => {
         console.log("roomCreated", roomCode)
         rooms[roomCode] = {
             players: [socket.id],
-            ready: {}
+            ready: {},
         };
         socket.join(roomCode);
-        socket.emit('roomCreated', roomCode);
+        socket.emit('roomCreated', { roomCode, player: socket.id });
         console.log(`Room ${roomCode} created by ${socket.id}`);
     });
 

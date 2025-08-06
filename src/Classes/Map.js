@@ -1221,5 +1221,28 @@ export class Map extends Phaser.Scene {
             });
         }
 
+        for (const dir of directions) {
+            scene.anims.create({
+                key: `player2-idle-${dir}`,
+                frames: scene.anims.generateFrameNumbers(`main2_idle_${dir}`, { start: 0, end: 7 }),
+                frameRate: 6,
+                repeat: -1
+            });
+
+            scene.anims.create({
+                key: `player2-run-${dir}`,
+                frames: scene.anims.generateFrameNumbers(`main2_run_${dir}`, { start: 0, end: 7 }),
+                frameRate: 10,
+                repeat: -1
+            });
+
+            scene.anims.create({
+                key: `player2-attack-${dir}`,
+                frames: scene.anims.generateFrameNumbers(`main2_attack_${dir}`, { start: 0, end: 7 }),
+                frameRate: 10,
+                repeat: 0
+            });
+        }
+
     }
 }
