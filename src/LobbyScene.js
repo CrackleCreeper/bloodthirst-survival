@@ -197,6 +197,24 @@ export class LobbyScene extends Phaser.Scene {
             }
         );
         this.readyButton.setVisible(false);
+
+        this.colorInfoText = this.add.text(this.scale.width / 2, this.scale.height - 40,
+            'You will appear as the blue player.',
+            { font: '18px Arial', fill: '#00bfff' } // Blue text
+        ).setOrigin(0.5);
+
+        this.colorInfoText.setStyle({
+            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+            padding: { x: 10, y: 5 },
+            borderRadius: 5
+        });
+
+        this.colorInfoText.setAlpha(0);
+        this.tweens.add({
+            targets: this.colorInfoText,
+            alpha: 1,
+            duration: 500
+        });
     }
 
     createBackButton() {

@@ -27,34 +27,33 @@ export class Arena1_New_Multi extends Map {
     }
 
     create() {
-        // 1) Map + tilesets
+        // Map + tilesets
         this.map = this.make.tilemap({ key: this.mapKey });
         const tilesetObjs = this.tilesets.map(ts =>
             this.map.addTilesetImage(ts.name, ts.imageKey)
         );
 
-        // 2) Layers
+        // Layers
         this.createLayers(this.map, tilesetObjs);
 
-        // 3) Camera/world bounds
+        // Camera/world bounds
         this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
         this.cameras.main.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
         this.cameras.main.setRoundPixels(true);
 
-        // 4) Obstacles (if you need them later)
+        // Obstacles (if you need them later)
         this.setupObstacles();
 
-        // 5) Puppet container (no physics needed)
+        // Puppet container (no physics needed)
         this.enemies = this.add.group();
 
-        // 6) Ensure animations are loaded once
+        // Ensure animations are loaded once
         if (!this.anims.exists('player-idle-down') || !this.anims.exists('player2-idle-down')) {
             this.loadPlayerAnimations(this);
             this.loadAnimations(this);
         }
         this.areAnimationsLoaded = true;
 
-        // 7) Minimal input so update() won’t crash
         this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.cursors = this.input.keyboard.createCursorKeys();
         this.W = this.input.keyboard.addKey('W');
@@ -63,7 +62,7 @@ export class Arena1_New_Multi extends Map {
         this.D = this.input.keyboard.addKey('D');
         this.canAttack = true;
 
-        // 8) Simple UI
+        // Simple UI
         this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" })
             .setScrollFactor(0)
             .setDepth(999);
@@ -76,10 +75,10 @@ export class Arena1_New_Multi extends Map {
         this.mysteryCrystals = this.physics.add.group();
         this.bloodCrystals = this.physics.add.group();
 
-        // 9) Multiplayer socket wiring
+        // Multiplayer socket wiring
         this.setupMultiplayer();
         socket.emit("player-joined");
-        socket.emit("joinGame", { x: 400, y: 200 }); // or wherever you want to spawn the player
+        socket.emit("joinGame", { x: 400, y: 200 });
 
         console.log("Multiplayer registered animations:", this.anims.anims.keys());
 
@@ -90,7 +89,7 @@ export class Arena1_New_Multi extends Map {
 
 
     setupMultiplayer() {
-        socket.removeAllListeners(); // Prevent duplicate listeners after restart
+        socket.removeAllListeners();
 
         this.players = this.physics.add.group();
         this.frontendPlayers = {};
@@ -127,7 +126,6 @@ export class Arena1_New_Multi extends Map {
                     // collide player with map
                     this.physics.add.collider(newPlayer, this.layers.collisions);
 
-                    // 📌 Follow only the local player
                     if (playerInfo.id === socket.id) {
                         this.cameras.main.setZoom(1.2);
                         this.cameras.main.startFollow(newPlayer);
@@ -135,13 +133,6 @@ export class Arena1_New_Multi extends Map {
                     }
 
                     this.frontendPlayers[playerInfo.id] = newPlayer;
-                    if (playerInfo.id == socket.id)
-                        this.playerNameText = this.add.text(newPlayer.x, newPlayer.y - 20, 'You', {
-                            font: '16px Arial',
-                            fill: '#ffffff',
-                            stroke: '#000000',
-                            strokeThickness: 2
-                        }).setOrigin(0.5).setAlpha(0.5).setDepth(1000);
 
                 } else {
 
@@ -161,7 +152,6 @@ export class Arena1_New_Multi extends Map {
                 }
             });
 
-            // prune disconnected players
             Object.keys(this.frontendPlayers).forEach((id) => {
                 if (!players[id]) {
                     this.frontendPlayers[id].destroy();
@@ -215,12 +205,10 @@ export class Arena1_New_Multi extends Map {
         });
 
 
-        // Spawn puppet on first sight
         socket.on("spawnEnemy", (data) => {
             let enemySprite = this.enemies.getChildren().find(e => e.enemyId === data.id);
             if (!enemySprite) {
-                // Use a valid TEXTURE key you actually loaded (match singleplayer)
-                const baseTextureKey = `${data.type.toLowerCase()}_idle`; // e.g. "vampire1_idle"
+                const baseTextureKey = `${data.type.toLowerCase()}_idle`;
                 enemySprite = this.add.sprite(data.x, data.y, baseTextureKey);
                 enemySprite.enemyId = data.id;
                 enemySprite.setDepth(3);
@@ -243,7 +231,6 @@ export class Arena1_New_Multi extends Map {
                     this.enemies.add(enemySprite);
                 }
 
-                // smooth position
                 const alpha = 0.35;
                 enemySprite.x = Phaser.Math.Linear(enemySprite.x, enemyData.x, alpha);
                 enemySprite.y = Phaser.Math.Linear(enemySprite.y, enemyData.y, alpha);
@@ -291,14 +278,14 @@ export class Arena1_New_Multi extends Map {
             const s = this.enemies.getChildren().find(e => e.enemyId === id);
             if (!s) return;
 
-            const type = s.texture.key.split("_")[0]; // "vampire1"
+            const type = s.texture.key.split("_")[0];
             const direction = s.anims.currentAnim?.key?.split("_").pop() || "down";
 
             const hurtAnim = `${type}_hurt_${direction}`;
 
             if (this.anims.exists(hurtAnim)) {
                 s.anims.play(hurtAnim, true);
-                s.animationLockUntil = this.time.now + 400; // lock for 400ms
+                s.animationLockUntil = this.time.now + 400;
             } else {
                 s.setTint(0xffaaaa);
                 this.time.delayedCall(80, () => s.clearTint());
@@ -306,13 +293,11 @@ export class Arena1_New_Multi extends Map {
         });
 
 
-
-        // Use the right property here (enemyId)
         socket.on("enemyKilled", ({ id }) => {
             const e = this.enemies.getChildren().find(s => s.enemyId === id);
             if (!e) return;
 
-            const type = e.texture.key.split("_")[0]; // "vampire1", "vampire2", etc.
+            const type = e.texture.key.split("_")[0];
 
             const deathAnim = `${type}_death`;
 
@@ -380,13 +365,13 @@ export class Arena1_New_Multi extends Map {
             this.time.delayedCall(time, () => {
                 const crystal = new BloodCrystal(this, x, y, type);
                 crystal.crystalId = id;
-                crystal.collected = false; // <-- ✅ ADD THIS FLAG
+                crystal.collected = false;
                 this.bloodCrystals.add(crystal);
 
                 const localPlayer = this.frontendPlayers[socket.id];
                 if (localPlayer) {
                     this.physics.add.overlap(localPlayer, crystal, () => {
-                        if (crystal.collected) return; // <-- ✅ PREVENT MULTIPLE TRIGGERS
+                        if (crystal.collected) return;
                         crystal.collected = true;
                         socket.emit("collectBloodCrystal", { crystalId: id, type });
                     });
@@ -609,8 +594,6 @@ export class Arena1_New_Multi extends Map {
                     this.lastSentY = y;
                     this.lastMoving = isMoving;
                     this.lastDirection = direction;
-                    this.playerNameText.setPosition(x, y - 20);
-
                 }
             }
         }
