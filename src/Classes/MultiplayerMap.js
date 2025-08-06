@@ -105,9 +105,9 @@ export class Arena1_New_Multi extends Map {
                     // create new player sprite
                     let newPlayer;
                     if (playerInfo.id == this.hostId)
-                        newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main_idle_down').setScale(1);
-                    else
                         newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main2_idle_down').setScale(1);
+                    else
+                        newPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, 'main_idle_down').setScale(1);
                     newPlayer.playerId = playerInfo.id;
                     newPlayer.direction = "down";
                     newPlayer.setCollideWorldBounds(true);
@@ -153,9 +153,9 @@ export class Arena1_New_Multi extends Map {
                     sprite.setPosition(playerInfo.x, playerInfo.y);
                     if (!sprite.anims.isPlaying || sprite.direction !== playerInfo.direction) {
                         if (playerInfo.id == this.hostId)
-                            sprite.anims.play(`player-run-${playerInfo.direction}`, true);
-                        else
                             sprite.anims.play(`player2-run-${playerInfo.direction}`, true);
+                        else
+                            sprite.anims.play(`player-run-${playerInfo.direction}`, true);
                         sprite.direction = playerInfo.direction;
                     }
                 }
@@ -187,9 +187,9 @@ export class Arena1_New_Multi extends Map {
             const p = this.frontendPlayers[playerId];
             if (!p) return;
             if (playerId == this.hostId)
-                p.anims.play(`player-attack-${direction}`, true);
-            else
                 p.anims.play(`player2-attack-${direction}`, true);
+            else
+                p.anims.play(`player-attack-${direction}`, true);
             p.isAttacking = true;
             this.time.delayedCall(400, () => { if (p) p.isAttacking = false; });
         });
@@ -201,9 +201,9 @@ export class Arena1_New_Multi extends Map {
             if (!p) return;
             p.setPosition(data.x, data.y);
             if (data.playerId == this.hostId)
-                p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
-            else
                 p.anims.play(data.isMoving ? `player2-run-${data.direction}` : `player2-idle-${data.direction}`, true);
+            else
+                p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
         });
 
         socket.on("removePlayer", (id) => {
@@ -524,7 +524,8 @@ export class Arena1_New_Multi extends Map {
 
             this.sound.play('player_attack', { volume: 0.5 });
             myPlayer.anims.stop();
-            myPlayer.anims.play(`player-attack-${dir}`, true);
+
+            myPlayer.anims.play(`player2-attack-${dir}`, true);
 
             this.time.delayedCall(400, () => {
                 myPlayer.isAttacking = false;
@@ -582,12 +583,12 @@ export class Arena1_New_Multi extends Map {
             // Animations
             if (moving) {
                 if (!myPlayer.anims.isPlaying || myPlayer.direction !== direction) {
-                    myPlayer.anims.play(`player-run-${direction}`, true);
+                    myPlayer.anims.play(`player2-run-${direction}`, true);
                     myPlayer.direction = direction;
                 }
             } else {
                 if (!myPlayer.anims.isPlaying || !myPlayer.anims.currentAnim.key.includes("idle")) {
-                    myPlayer.anims.play(`player-idle-${myPlayer.direction}`, true);
+                    myPlayer.anims.play(`player2-idle-${myPlayer.direction}`, true);
                 }
             }
 
