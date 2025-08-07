@@ -297,10 +297,18 @@ io.on('connection', (socket) => {
         const positive = ['massiveHeal', 'invincibility', 'speedFrenzy', 'multiAoE', 'clearEnemies'];
         const negative = ['hpDrop', 'speedLoss', 'enemyWave', 'freezePlayer', 'flipControls'];
 
-        const isPositive = Math.random() < 0.5;
-        const effect = isPositive
-            ? positive[Math.floor(Math.random() * positive.length)]
-            : negative[Math.floor(Math.random() * negative.length)];
+        const roll = Math.random();
+        let effect;
+
+        if (roll < 0.4) {
+            effect = 'gainSwap'; // 40%
+        } else if (roll < 0.7) {
+            effect = positive[Math.floor(Math.random() * positive.length)]; // 30%
+        } else {
+            effect = negative[Math.floor(Math.random() * negative.length)]; // 30%
+        }
+
+        const isPositive = effect === 'gainSwap' || positive.includes(effect);
 
         // Collector gets full effect
         socket.emit("applyMysteryEffect", { playerId: socket.id, effect });
@@ -420,10 +428,6 @@ io.on('connection', (socket) => {
                 delete backendEnemies[e.id];
             }
         }
-
-
-
-
         // Still broadcast the attack animation to OTHER clients
         socket.broadcast.emit("playerAttack", { playerId, direction: face });
     });
@@ -473,6 +477,43 @@ io.on('connection', (socket) => {
             console.log(`Starting game in room ${roomCode}`);
         }
     });
+
+
+    socket.on("requestSwap", ({ playerId }) => {
+        const player = backendPlayers[playerId];
+        if (!player || !player.gainSwapCount || player.gainSwapCount <= 0) return;
+
+        const otherSocketId = Object.keys(backendPlayers).find(id => id !== playerId);
+        if (!otherSocketId) return;
+
+        const otherPlayer = backendPlayers[otherSocketId];
+
+        // Swap positions
+        const tempX = player.x;
+        const tempY = player.y;
+        player.x = otherPlayer.x;
+        player.y = otherPlayer.y;
+        otherPlayer.x = tempX;
+        otherPlayer.y = tempY;
+
+        // Reduce swap count
+        player.gainSwapCount--;
+
+        // Tell both players to update position
+        io.to(socket.id).emit("playerSwapped", { x: player.x, y: player.y });
+        io.to(otherSocketId).emit("playerSwapped", { x: otherPlayer.x, y: otherPlayer.y });
+
+        // Send updated swap count to the player who swapped
+        socket.emit("updateSwapCountFrontEnd", { swapCount: player.gainSwapCount, playerId });
+    });
+
+    socket.on("swapCountUpdate", ({ swapCount, playerId }) => {
+        backendPlayers[playerId].gainSwapCount = swapCount;
+
+    })
+
+
+
 
     // HANDLE DISCONNECT
     socket.on('disconnect', () => {
@@ -884,6 +925,7 @@ function getEffectLabel(effect) {
         case 'freezePlayer': return 'Freeze';
         case 'flipControls': return 'Controls Flipped!';
         case 'enemyWave': return 'Enemy Wave!';
+        case "gainSwap": return 'Swap Power!';
         default: return 'Mystery!';
     }
 }

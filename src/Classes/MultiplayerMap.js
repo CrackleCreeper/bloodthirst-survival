@@ -55,6 +55,7 @@ export class Arena1_New_Multi extends Map {
         this.areAnimationsLoaded = true;
 
         this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.swapKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
         this.cursors = this.input.keyboard.createCursorKeys();
         this.W = this.input.keyboard.addKey('W');
         this.A = this.input.keyboard.addKey('A');
@@ -63,12 +64,18 @@ export class Arena1_New_Multi extends Map {
         this.canAttack = true;
 
         // Simple UI
-        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" })
+        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px Arial", fill: "#fff" })
             .setScrollFactor(0)
             .setDepth(999);
-        this.currentLevelText = this.add.text(100, 140, `Level: 1`, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-        this.timerText = this.add.text(100, 110, `Time Left: 30`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0);
+        this.currentLevelText = this.add.text(100, 140, `Level: 1`, { fontSize: '16px Arial', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        this.timerText = this.add.text(100, 110, `Time Left: 30`, { fontSize: '16px Arial', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px Arial', fill: '#fff' }).setScrollFactor(0);
+        this.swapText = this.add.text(100, 170, "Swap Count: 0", {
+            font: "16px Arial",
+            fill: "#fff"
+        });
+        this.swapText.setScrollFactor(0);
+
         this.gameOver = false;
         this.apiManager = new ApiManager(this);
         this.weatherManager = new WeatherEffectManager(this, this.apiManager, true);
@@ -122,6 +129,7 @@ export class Arena1_New_Multi extends Map {
                     newPlayer.isAttacking = false;
                     newPlayer.beingHit = false;
                     newPlayer.hp = playerInfo.hp ?? 5;
+                    newPlayer.swaps = 0;
 
                     // collide player with map
                     this.physics.add.collider(newPlayer, this.layers.collisions);
@@ -421,6 +429,26 @@ export class Arena1_New_Multi extends Map {
             this.showFloatingText(x, y, text, color);
         });
 
+        socket.on("playerSwapped", ({ x, y }) => {
+            const player = this.frontendPlayers[socket.id];
+            if (player) {
+                player.setPosition(x, y);
+                this.cameras.main.flash(100, 255, 255, 255);
+                // Optional: add camera shake, particles, etc.
+            }
+        });
+
+
+        socket.on("updateSwapCountFrontEnd", ({ swapCount, playerId }) => {
+            console.log("Trying to update count:", swapCount)
+            this.frontendPlayers[playerId].gainSwapCount = swapCount;
+            if (this.swapText) {
+                this.swapText.setText("Swap Count: " + swapCount);
+            }
+        });
+
+
+
 
         socket.on("levelTimerUpdate", ({ remaining, currentLevel }) => {
             this.timerText.setText(`Time Left: ${remaining}`);
@@ -495,6 +523,10 @@ export class Arena1_New_Multi extends Map {
         if (this.gameOver) return;
         const myPlayer = this.frontendPlayers[socket.id];
         if (myPlayer.slipping) return;
+        if (Phaser.Input.Keyboard.JustDown(this.swapKey)) {
+            console.log("Trying to swap")
+            socket.emit("requestSwap", { playerId: socket.id });
+        }
         if (Phaser.Input.Keyboard.JustDown(this.attackKey) && !this.beingHit && this.canAttack && !myPlayer.isAttacking) {
             const dir = myPlayer.direction || "down";
 
@@ -718,6 +750,13 @@ export class Arena1_New_Multi extends Map {
             case 'clearEnemies':
                 text = "Enemies Cleared!";
                 break;
+            case "gainSwap":
+                text = "Swap Power!";
+                player.gainSwapCount = (player.gainSwapCount || 0) + 1;
+                socket.emit("swapCountUpdate", { swapCount: player.gainSwapCount, playerId: socket.id });
+                this.swapText.setText(`Swap Count: ${player.gainSwapCount}`);
+                break;
+            // Announce that player can swap maybe.
         }
 
         this.sound.play('shard_collect', { volume: 0.5 });
