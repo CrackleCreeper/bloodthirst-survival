@@ -240,6 +240,14 @@ io.on('connection', (socket) => {
         if (player) {
             player.hp = hp;
         }
+        if (hp <= 0) {
+            socket.broadcast.emit("removePlayer", socket.id);
+            io.emit("gameOver");
+        }
+    });
+
+    socket.on("setInvulnerable", ({ bool }) => {
+        backendPlayers[socket.id].invulnerable = bool;
     });
 
 

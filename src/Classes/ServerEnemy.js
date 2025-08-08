@@ -256,16 +256,19 @@ export class ServerEnemy {
 
                     if (typeof targetPlayer.takeDamage === 'function') targetPlayer.takeDamage(this.attackDamage);
                     else {
-                        targetPlayer.hp -= this.attackDamage;
-                        this.onHit(targetPlayer.id, {
-                            hp: targetPlayer.hp,
-                            knockback: { x: targetPlayer.x - this.x, y: targetPlayer.y - this.y }
-                        });
+                        console.log(targetPlayer.invulnerable);
+                        if (!targetPlayer.invulnerable) {
+                            targetPlayer.hp -= this.attackDamage;
+                            this.onHit(targetPlayer.id, {
+                                hp: targetPlayer.hp,
+                                knockback: { x: targetPlayer.x - this.x, y: targetPlayer.y - this.y }
+                            });
 
-                        if (targetPlayer.hp <= 0) {
-                            console.log(`Enemy killed a player.`)
-                            targetPlayer.isDead = true;
-                            this.onDeath(targetPlayer.id);
+                            if (targetPlayer.hp <= 0) {
+                                console.log(`Enemy killed a player.`)
+                                targetPlayer.isDead = true;
+                                this.onDeath(targetPlayer.id);
+                            }
                         }
                     }
 

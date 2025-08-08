@@ -142,6 +142,23 @@ export class Arena1_New_Multi extends Map {
 
                     this.frontendPlayers[playerInfo.id] = newPlayer;
 
+                    // TODO: VUNERABILITY
+                    newPlayer.invulnerable = true;
+                    socket.emit("setInvulnerable", { bool: true });
+                    this.tweens.add({
+                        targets: newPlayer,
+                        alpha: 0,
+                        ease: 'Linear',
+                        duration: 200,
+                        repeat: 14,
+                        yoyo: true,
+                        onComplete: () => {
+                            newPlayer.alpha = 1;
+                            newPlayer.invulnerable = false;
+                            socket.emit("setInvulnerable", { bool: false });
+                        }
+                    });
+
                 } else {
 
                     if (playerInfo.id === socket.id && typeof playerInfo.hp === "number") {
@@ -648,6 +665,7 @@ export class Arena1_New_Multi extends Map {
             case 'invincibility':
                 text = 'Invincibility!';
                 player.invulnerable = true;
+                socket.emit("setInvulnerable", { bool: true });
                 this.tweens.add({
                     targets: player,
                     alpha: 0,
@@ -658,6 +676,7 @@ export class Arena1_New_Multi extends Map {
                     onComplete: () => {
                         player.alpha = 1;
                         player.invulnerable = false;
+                        socket.emit("setInvulnerable", { bool: false });
                     }
                 });
                 break;
@@ -706,6 +725,7 @@ export class Arena1_New_Multi extends Map {
                 text = 'HP -2';
                 player.hp = Math.max(0, player.hp - 2);
                 if (player.playerId === socket.id) this.hpText.setText(`HP: ${player.hp}`);
+                socket.emit("updatePlayerHP", { hp: player.hp });
                 break;
 
             case 'speedLoss':
