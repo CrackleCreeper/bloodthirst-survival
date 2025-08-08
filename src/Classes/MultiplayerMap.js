@@ -26,6 +26,8 @@ export class Arena1_New_Multi extends Map {
         this.hostId = data?.host;
     }
 
+
+
     create() {
         // Map + tilesets
         this.map = this.make.tilemap({ key: this.mapKey });

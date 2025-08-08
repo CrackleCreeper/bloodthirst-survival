@@ -2,10 +2,18 @@ import Phaser from "phaser";
 
 export default class MysteryCrystal extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y) {
+        if (!scene || !scene.sys || scene.sys.isDestroyed()) {
+            console.error('Invalid scene when creating MysteryCrystal');
+            return;
+        }
         super(scene, x, y, 'crystal');
-
-        scene.add.existing(this);
-        scene.physics.add.existing(this);
+        if (scene.add && scene.physics) {
+            scene.add.existing(this);
+            scene.physics.add.existing(this);
+        } else {
+            console.error('Scene missing add or physics manager');
+            return;
+        }
 
         scene.tweens.add({
             targets: this,
@@ -41,13 +49,24 @@ export default class MysteryCrystal extends Phaser.Physics.Arcade.Sprite {
         }).setOrigin(0.5).setDepth(201);
 
 
-        this.on('destroy', () => this.overlay.destroy());
+        this.on('destroy', () => {
+            if (this.overlay && this.overlay.destroy) {
+                this.overlay.destroy();
+            }
+        });
     }
-    updateOverlay = () => this.overlay.setPosition(this.x, this.y);
-    preUpdate(time, delta) {
-        super.preUpdate(time, delta);
-        this.updateOverlay();
+    updateOverlay() {
+        // ✅ Always validate before accessing
+        if (this.overlay && this.overlay.setPosition && !this.overlay.scene.sys.isDestroyed()) {
+            this.overlay.setPosition(this.x, this.y);
+        }
     }
 
+    preUpdate(time, delta) {
+        if (this.scene && this.scene.sys && !this.scene.sys.isDestroyed()) {
+            super.preUpdate(time, delta);
+            this.updateOverlay();
+        }
+    }
 
 }
