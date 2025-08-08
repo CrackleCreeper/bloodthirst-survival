@@ -331,6 +331,7 @@ export class LoadingScene extends Phaser.Scene {
         this.load.audio('player_hurt', 'assets/Audio/Player_Hurt.mp3');
         this.load.audio('running_on_snow', 'assets/Audio/Running_on_Snow.mp3');
         this.load.audio('snow', 'assets/Audio/Snow.mp3');
+        this.load.audio('tp', 'assets/Audio/Teleport.mp3');
     }
 
     loadAnimationSpriteSheets() {

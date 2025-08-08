@@ -145,6 +145,7 @@ io.on('connection', (socket) => {
             y: playerData.y,
             hp: 5,
             isDead: false,
+            invulnerable: false,
             direction: 'down',
         };
 

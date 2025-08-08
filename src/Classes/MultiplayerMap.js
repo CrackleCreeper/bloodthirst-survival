@@ -130,6 +130,7 @@ export class Arena1_New_Multi extends Map {
                     newPlayer.beingHit = false;
                     newPlayer.hp = playerInfo.hp ?? 5;
                     newPlayer.swaps = 0;
+                    newPlayer.currentRunSound = null;
 
                     // collide player with map
                     this.physics.add.collider(newPlayer, this.layers.collisions);
@@ -310,6 +311,7 @@ export class Arena1_New_Multi extends Map {
 
             if (this.anims.exists(hurtAnim)) {
                 s.anims.play(hurtAnim, true);
+                this.sound.play('vampire_hurt', { volume: 0.9 });
                 s.animationLockUntil = this.time.now + 400;
             } else {
                 s.setTint(0xffaaaa);
@@ -328,6 +330,7 @@ export class Arena1_New_Multi extends Map {
 
             if (this.anims.exists(deathAnim)) {
                 e.anims.play(deathAnim, true);
+                this.sound.play('vampire_die', { volume: 0.3 });
                 e.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
                     e.destroy();
                 });
@@ -451,6 +454,7 @@ export class Arena1_New_Multi extends Map {
             if (player) {
                 player.setPosition(x, y);
                 this.cameras.main.flash(100, 255, 255, 255);
+                this.sound.play('tp', { volume: 0.5 });
                 // Optional: add camera shake, particles, etc.
             }
         });
@@ -611,7 +615,12 @@ export class Arena1_New_Multi extends Map {
                 }
                 moving = true;
             } else {
+                moving = false;
                 myPlayer.setVelocity(0, 0);
+                if (myPlayer.currentRunSound) {
+                    this.sound.stopByKey(myPlayer.currentRunSound);
+                    myPlayer.currentRunSound = null;
+                }
             }
 
             // Animations
@@ -620,6 +629,17 @@ export class Arena1_New_Multi extends Map {
                     myPlayer.anims.play(`player2-run-${direction}`, true);
                     myPlayer.direction = direction;
                 }
+
+                if (myPlayer.currentRunSound && !this.sound.get(myPlayer.currentRunSound)) {
+                    myPlayer.currentRunSound = null;
+                }
+                if (!myPlayer.currentRunSound) {
+                    let runSound = this.weatherManager.isRaining ? 'running_on_wet_grass' : 'running_on_grass';
+                    runSound = this.weatherManager.isSnowing ? 'running_on_snow' : runSound;
+                    this.sound.play(runSound, { loop: true, volume: 0.5 });
+                    myPlayer.currentRunSound = runSound;
+                }
+
             } else {
                 if (!myPlayer.anims.isPlaying || !myPlayer.anims.currentAnim.key.includes("idle")) {
                     myPlayer.anims.play(`player2-idle-${myPlayer.direction}`, true);
