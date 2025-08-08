@@ -87,47 +87,47 @@ io.on('connection', (socket) => {
             // io.emit("weatherUpdate", { code: currentWeatherCode });
         }
     });
-    socket.on("playerReady", () => {
-        console.log(`${socket.id} is ready`);
-        readyPlayers.add(socket.id);
+    // socket.on("playerReady", () => {
+    //     console.log(`${socket.id} is ready`);
+    //     readyPlayers.add(socket.id);
 
-        if (readyPlayers.size === activePlayers.size) {
-            console.log("✅ All players are ready. Restarting game.");
+    //     if (readyPlayers.size === activePlayers.size) {
+    //         console.log("✅ All players are ready. Restarting game.");
 
-            // Full reset
-            backendEnemies = {};
-            backendPlayers = {};
-            currentLevel = 1;
-            levelTime = 30;
-            stopLoop = false;
-            spawnLoopStarted = false;
+    //         // Full reset
+    //         backendEnemies = {};
+    //         backendPlayers = {};
+    //         currentLevel = 1;
+    //         levelTime = 30;
+    //         stopLoop = false;
+    //         spawnLoopStarted = false;
 
-            // Reset all ready flags
-            readyPlayers.clear();
+    //         // Reset all ready flags
+    //         readyPlayers.clear();
 
-            // Emit restart signal
-            io.emit("restartGame");
+    //         // Emit restart signal
+    //         io.emit("restartGame");
 
-            // Restart game loop
-            for (const id of activePlayers) {
-                backendPlayers[id] = {
-                    id,
-                    x: 400,
-                    y: 200,
-                    hp: 5,
-                    attackMultiplier: 1,
-                    isAttacking: false,
-                    invulnerable: false,
-                    isFrozen: false,
-                };
-            }
+    //         // Restart game loop
+    //         for (const id of activePlayers) {
+    //             backendPlayers[id] = {
+    //                 id,
+    //                 x: 400,
+    //                 y: 200,
+    //                 hp: 5,
+    //                 attackMultiplier: 1,
+    //                 isAttacking: false,
+    //                 invulnerable: false,
+    //                 isFrozen: false,
+    //             };
+    //         }
 
-            io.emit("updatePlayers", backendPlayers);
+    //         io.emit("updatePlayers", backendPlayers);
 
-            startWaveSpawnerForLevel(io, currentLevel);
-            startLevelTimer(io);
-        }
-    });
+    //         startWaveSpawnerForLevel(io, currentLevel);
+    //         startLevelTimer(io);
+    //     }
+    // });
 
 
 
@@ -232,8 +232,6 @@ io.on('connection', (socket) => {
         spawnLoopStarted = false;
 
         socket.broadcast.emit("removePlayer", socket.id);
-        io.emit("gameOver");
-
     });
 
     socket.on("updatePlayerHP", ({ hp }) => {
@@ -445,6 +443,7 @@ io.on('connection', (socket) => {
 
         const roomCode = generateRoomCode();
         console.log("roomCreated", roomCode)
+        socket.currentRoom = roomCode;
         rooms[roomCode] = {
             players: [socket.id],
             ready: {},
@@ -469,23 +468,83 @@ io.on('connection', (socket) => {
 
         room.players.push(socket.id);
         socket.join(roomCode);
+        socket.currentRoom = roomCode;
         io.to(roomCode).emit('playerJoined', room.players);
         console.log(`Socket ${socket.id} joined room ${roomCode}`);
     });
 
     // PLAYER READY
-    socket.on('playerReady', (roomCode) => {
+    socket.on("playerReady", (roomCodes, context) => {
+        const roomCode = roomCodes || socket.currentRoom;
         const room = rooms[roomCode];
+
+        console.log(`${socket.id} is ready in room ${roomCode}`);
+
+
         if (!room) return;
 
+        // Track ready players per room
+        if (!room.ready) room.ready = {};
         room.ready[socket.id] = true;
 
-        const allReady = room.players.length === 2 && room.players.every(id => room.ready[id]);
+        // Check if all players in THIS room are ready
+        const allReady = room.players.length >= 2 && room.players.every(id => room.ready[id]);
+
         if (allReady) {
-            io.to(roomCode).emit('startGame');
-            console.log(`Starting game in room ${roomCode}`);
+            console.log(`✅ All players ready in room ${roomCode}. Restarting game.`);
+
+            // Reset room-specific game state
+            const roomPlayers = {};
+
+            // Initialize players for this room only
+            room.players.forEach(playerId => {
+                roomPlayers[playerId] = {
+                    id: playerId,
+                    x: 400,
+                    y: 200,
+                    hp: 5,
+                    attackMultiplier: 1,
+                    isAttacking: false,
+                    invulnerable: false,
+                    isFrozen: false,
+                };
+            });
+
+            // Update global backendPlayers with room players
+            Object.assign(backendPlayers, roomPlayers);
+
+            // Reset ready flags for this room
+            room.ready = {};
+
+            // Send restart signal and updated players to room only
+            if (context === "restart") {
+                io.to(roomCode).emit("restartGame");
+            } else {
+                io.to(roomCode).emit("startGame");
+            }
+            io.to(roomCode).emit("updatePlayers", roomPlayers);
+
+            // Reset game systems if this is the active game room
+            if (room.players.some(id => activePlayers.has(id))) {
+                backendEnemies = {};
+                mysteryCrystals = [];
+                bloodCrystals = [];
+                currentLevel = 1;
+                levelTime = 30;
+                stopLoop = false;
+                spawnLoopStarted = false;
+
+                // Restart game systems
+                setTimeout(() => {
+                    startWaveSpawnerForLevel(io, currentLevel);
+                    startLevelTimer(io);
+                    startMysteryCrystalSpawner();
+                    spawnLoopStarted = true;
+                }, 1000);
+            }
         }
     });
+
 
 
     socket.on("requestSwap", ({ playerId }) => {
@@ -525,22 +584,81 @@ io.on('connection', (socket) => {
 
 
     // HANDLE DISCONNECT
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+        console.log(`Player disconnected: ${socket.id} (${reason})`);
+
+        // Remove from active players and backend players
+        activePlayers.delete(socket.id);
+        delete backendPlayers[socket.id];
+
+        let wasInActiveGame = false;
+        let remainingPlayers = [];
+
+        // Handle room cleanup and determine game state
         for (const [roomCode, room] of Object.entries(rooms)) {
-            const index = room.players.indexOf(socket.id);
-            if (index !== -1) {
-                room.players.splice(index, 1);
+            const playerIndex = room.players.indexOf(socket.id);
+            if (playerIndex !== -1) {
+                // Remove player from room
+                room.players.splice(playerIndex, 1);
                 delete room.ready[socket.id];
-                io.to(roomCode).emit('playerLeft', socket.id);
+
                 console.log(`Socket ${socket.id} left room ${roomCode}`);
 
+                // Check if this was during an active game
+                wasInActiveGame = room.players.some(id => activePlayers.has(id));
+                remainingPlayers = [...room.players];
+
                 if (room.players.length === 0) {
+                    // Empty room - delete it
                     delete rooms[roomCode];
-                    console.log(`Room ${roomCode} deleted`);
+                    console.log(`Room ${roomCode} deleted (empty)`);
+                } else if (room.players.length === 1 && wasInActiveGame) {
+                    // One player remains during active game - they win!
+                    const winner = room.players[0];
+                    console.log(`[GAME OVER] Player ${socket.id} disconnected. Player ${winner} wins!`);
+
+                    // Stop game systems
+                    stopLoop = true;
+                    stopAllTimersAndWaves();
+                    backendEnemies = {};
+                    currentLevel = 1;
+                    levelTime = 30;
+                    spawnLoopStarted = false;
+
+                    // Send win message to remaining player
+                    io.to(winner).emit("playerDied", { loserId: socket.id });
+
+                    // Notify room about disconnect
+                    io.to(roomCode).emit('playerLeft', socket.id);
+                } else {
+                    // Normal lobby disconnect or multiple players remain
+                    io.to(roomCode).emit('playerLeft', socket.id);
                 }
+
+                break; // Player can only be in one room
             }
         }
+
+        // If no active players remain anywhere, stop all game systems
+        if (activePlayers.size === 0) {
+            console.log("[CLEANUP] No active players remain. Stopping all game systems.");
+            stopLoop = true;
+            stopAllTimersAndWaves();
+            backendEnemies = {};
+            mysteryCrystals = [];
+            bloodCrystals = [];
+            currentLevel = 1;
+            levelTime = 30;
+            spawnLoopStarted = false;
+
+            // Clear all backend state
+            backendPlayers = {};
+        } else {
+            // Update remaining players about the disconnection
+            io.emit("updatePlayers", backendPlayers);
+        }
     });
+
 
 
 
@@ -631,7 +749,7 @@ function dynamicEnemySpawn() {
             TILE_SIZE,
             {
                 onHit: (playerId, payload) => io.to(playerId).emit("playerHit", payload),
-                onDeath: (playerId) => io.to(playerId).emit("playerDied")
+                onDeath: (playerId) => io.emit("playerDied", { loserId: playerId })
             }
         );
 

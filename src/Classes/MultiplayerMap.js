@@ -94,6 +94,10 @@ export class Arena1_New_Multi extends Map {
     }
 
 
+    init(data) {
+        this.hostId = data?.host;
+        this.roomCode = data?.roomCode; // ← Add this
+    }
 
     setupMultiplayer() {
         socket.removeAllListeners();
@@ -364,7 +368,7 @@ export class Arena1_New_Multi extends Map {
             }
         });
 
-        socket.on("playerDied", () => {
+        socket.on("playerDied", ({ loserId }) => {
             const me = this.frontendPlayers[socket.id];
             if (!me) return;
             me.isDead = true;
@@ -372,7 +376,13 @@ export class Arena1_New_Multi extends Map {
             me.disableBody?.(true, true);
             this.hpText.setText("HP: 0");
             socket.emit("playerDied");
-            this.showGameOverScreen?.();
+            const win = (loserId !== socket.id);
+            this.scene.stop();
+            this.scene.start("GameOverScene", {
+                win,
+                roomCode: this.roomCode, // ← Make sure this is available
+                hostId: this.hostId
+            });
         });
 
         socket.on("mysteryCrystalSpawn", ({ id, x, y }) => {
@@ -518,8 +528,24 @@ export class Arena1_New_Multi extends Map {
         });
 
         socket.on("restartGame", () => {
-            this.scene.restart(); // restart the Phaser scene cleanly
+            console.log("[Restart] Cleaning up and restarting scene");
+
+            // Clean up current game state
+            this.gameOver = false;
+            this.frontendPlayers = {};
+
+            // Clear all groups
+            if (this.enemies) this.enemies.clear(true, true);
+            if (this.mysteryCrystals) this.mysteryCrystals.clear(true, true);
+            if (this.bloodCrystals) this.bloodCrystals.clear(true, true);
+
+            // Restart the scene properly
+            this.scene.restart({
+                hostId: this.hostId,
+                roomCode: this.roomCode
+            });
         });
+
 
 
 

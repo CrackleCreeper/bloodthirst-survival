@@ -182,7 +182,7 @@ export class LobbyScene extends Phaser.Scene {
             this.scale.width / 2, 350, "I'M READY", "#00aa00", 160, 50,
             () => {
                 if (this.roomCode) {
-                    socket.emit('playerReady', this.roomCode);
+                    socket.emit('playerReady', this.roomCode, "startGame");
                     this.readyButton.buttonText.setText("WAITING...");
                     this.readyButton.disableInteractive();
 
@@ -474,7 +474,7 @@ export class LobbyScene extends Phaser.Scene {
             this.scene.start("LoadingScene", {
                 nextScene: "Arena1_New_Multi",
                 roomCode: this.roomCode,
-                host: this.host
+                hostId: this.host
             });
         });
 

@@ -40,10 +40,10 @@ export default class MysteryCrystal extends Phaser.Physics.Arcade.Sprite {
             strokeThickness: 4
         }).setOrigin(0.5).setDepth(201);
 
-        this.updateOverlay = () => this.overlay.setPosition(this.x, this.y);
+
         this.on('destroy', () => this.overlay.destroy());
     }
-
+    updateOverlay = () => this.overlay.setPosition(this.x, this.y);
     preUpdate(time, delta) {
         super.preUpdate(time, delta);
         this.updateOverlay();

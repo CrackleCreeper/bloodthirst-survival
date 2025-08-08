@@ -22,7 +22,7 @@ export class LoadingScene extends Phaser.Scene {
 
     init(data) {
         this.nextScene = data?.nextScene || "Arena1_New";
-        this.host = data?.host;
+        this.hostId = data?.hostId;
     }
 
 
@@ -307,7 +307,8 @@ export class LoadingScene extends Phaser.Scene {
             onComplete: () => {
                 // Start the actual game scene
                 this.scene.start(this.nextScene, {
-                    host: this.host
+                    hostId: this.hostId,
+                    roomCode: this.roomCode
                 });
             }
         });

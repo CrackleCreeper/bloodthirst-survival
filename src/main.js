@@ -5,6 +5,7 @@ import { LoadingScene } from "./LoadingScreen.js";
 import { Arena1_New_Multi } from "./Classes/MultiplayerMap.js";
 import { Arena1_New } from "./Classes/SinglePlayerMap.js";
 import { LobbyScene } from './LobbyScene.js';
+import GameOverScene from "./GameOverScene.js";
 
 const config = {
   type: Phaser.AUTO,
@@ -12,7 +13,7 @@ const config = {
   height: 480,
   backgroundColor: "#1a1a1a",
   parent: "game-container",
-  scene: [StartScene, Arena1_New, Arena1_New_Multi, PauseScene, LoadingScene, LobbyScene],
+  scene: [StartScene, Arena1_New, Arena1_New_Multi, PauseScene, LoadingScene, LobbyScene, GameOverScene],
   pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,
