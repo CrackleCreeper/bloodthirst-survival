@@ -421,19 +421,18 @@ io.on('connection', (socket) => {
         // Remove from server state
         room.gameState.bloodCrystals = room.gameState.bloodCrystals.filter(c => c.id !== crystalId);
 
-        // Apply effect only to collector
-        socket.emit("applyBloodCrystalEffect", { playerId: socket.id, type });
+        // ✅ Send effect to ALL players in the room (including collector)
+        io.to(roomCode).emit("applyBloodCrystalEffect", { playerId: socket.id, type });
 
-        // Broadcast visuals to all clients
+        // Broadcast crystal removal to all clients
         io.to(roomCode).emit("bloodCrystalCollected", { crystalId });
 
-        // Optional: show text pop above player
+        // Optional: show text pop above player (you can keep this for additional text)
         let text = "";
         let color = "#ff0000ff"
         switch (type) {
             case "Vampire1":
                 text = "+1 HP";
-
                 break;
             case "Vampire2":
                 text = " Speed Up!";
@@ -443,8 +442,8 @@ io.on('connection', (socket) => {
                 text = "Blast!";
                 color = "#ff4444";
                 break;
-
         }
+
         socket.to(roomCode).emit("mysteryEffectVisual", {
             x: player.x,
             y: player.y,
@@ -452,6 +451,7 @@ io.on('connection', (socket) => {
             color: color
         });
     });
+
 
 
 

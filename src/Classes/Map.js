@@ -672,7 +672,7 @@ export class Map extends Phaser.Scene {
 
             case 'clearEnemies':
                 text = 'Enemies Cleared!';
-                this.enemies.children.iterate(enemy => enemy?.die?.());
+                this.enemies.children.iterate(enemy => enemy?.die?.(false));
                 break;
 
             case 'hpDrop':

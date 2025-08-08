@@ -79,6 +79,7 @@ export class Arena1_New_Multi extends Map {
         this.swapText.setScrollFactor(0);
 
         this.gameOver = false;
+        this.currentLevel = 1;
         this.apiManager = new ApiManager(this);
         this.weatherManager = new WeatherEffectManager(this, this.apiManager, true);
         this.mysteryCrystals = this.physics.add.group();
@@ -453,6 +454,8 @@ export class Arena1_New_Multi extends Map {
             if (!p) return;
             if (playerId === socket.id) {
                 this.applyBloodEffect(p, type, playerId);  // Full effect with logic + visuals
+            } else {
+                this.applyBloodEffectVisualOnly(p, type);
             }
 
         })
@@ -486,6 +489,7 @@ export class Arena1_New_Multi extends Map {
         socket.on("levelTimerUpdate", ({ remaining, currentLevel }) => {
             this.timerText.setText(`Time Left: ${remaining}`);
             this.currentLevelText.setText(`Level: ${currentLevel}`);
+            this.currentLevel = currentLevel;
         });
 
         socket.on("levelComplete", ({ currentLevel }) => {
@@ -890,27 +894,127 @@ export class Arena1_New_Multi extends Map {
                 break;
         }
     }
+    applyBloodEffectVisualOnly(player, type) {
+        this.sound.play('shard_collect', { volume: 0.5 });
+
+        switch (type) {
+            case "Vampire1": {
+                this.showFloatingText(player.x, player.y, '+1 HP', '#ff3333');
+                break;
+            }
+
+            case "Vampire2": {
+                this.showFloatingText(player.x, player.y, 'Speed Up!', '#ff8800');
+                // Optional: Add a visual tint to show speed boost
+                player.setTint(0xff8800);
+                this.time.delayedCall(10000, () => player.clearTint());
+                break;
+            }
+
+            case "Vampire3": {
+                console.log(`Vampire3 visual effect - Current level: ${this.currentLevel}`);
+
+                if (this.currentLevel <= 0) {
+                    this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
+                    // Optional: Add visual indicator for damage boost
+                    player.setTint(0xff2222);
+                    this.time.delayedCall(5000, () => player.clearTint());
+                } else {
+                    this.showFloatingText(player.x, player.y, 'Blast!', '#ff4444');
+                    // ✅ Show AoE visual for other players
+                    this.spawnAoECircle(player.x, player.y);
+                }
+                break;
+            }
+
+            default:
+                console.warn("Unknown blood crystal type:", type);
+        }
+    }
+
 
     spawnAoECircle(x, y) {
+        console.log(`Spawning AoE circle at ${x}, ${y}`); // ✅ Add debug
+
         if (typeof x !== 'number' || typeof y !== 'number') {
             console.warn("Invalid AoE coords:", x, y);
             return;
         }
-        const circle = this.add.circle(x, y, 100, 0xff3333, 0.3).setDepth(1000);
-        this.time.delayedCall(300, () => circle.destroy());
+
+        // ✅ Enhanced visual effect for better visibility
+        const circle = this.add.circle(x, y, 100, 0xff3333, 0.4).setDepth(1000);
+
+        // ✅ Add a scaling animation for better visibility
+        this.tweens.add({
+            targets: circle,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            alpha: 0,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => circle.destroy()
+        });
+
+        // ✅ Add a warning indicator before the blast
+        const warningCircle = this.add.circle(x, y, 100, 0xff0000, 0.2).setDepth(999);
+        this.tweens.add({
+            targets: warningCircle,
+            alpha: 0,
+            duration: 200,
+            yoyo: true,
+            repeat: 1,
+            onComplete: () => warningCircle.destroy()
+        });
+
+        // ✅ Add particle effect for more impact
+        const particles = this.add.particles(x, y, 'pixel', {
+            speed: { min: 50, max: 150 },
+            scale: { start: 0.3, end: 0.1 },
+            blendMode: 'ADD',
+            lifespan: 300,
+            color: "0xff0000",
+            quantity: 20
+        });
+
+        this.time.delayedCall(400, () => particles.destroy());
     }
+
+
 
     triggerAoEBlast({ x, y }) {
         console.log('AoE blast triggered!');
         const blastRadius = 100;
 
-        // Visual effect only on client
-        const circle = this.add.circle(x, y, blastRadius, 0xff3333, 0.3).setDepth(1000);
-        this.time.delayedCall(300, () => circle.destroy());
+        // ✅ Enhanced visual effect
+        const circle = this.add.circle(x, y, blastRadius, 0xff0000, 0.3).setDepth(1000);
+
+        // ✅ Add a scaling animation for better visibility
+        this.tweens.add({
+            targets: circle,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            alpha: 0,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => circle.destroy()
+        });
+
+        // ✅ Add particle effect for more impact
+        const particles = this.add.particles(x, y, 'pixel', {
+            speed: { min: 50, max: 150 },
+            scale: { start: 0.3, end: 0.1 },
+            blendMode: 'ADD',
+            lifespan: 300,
+            color: "0xff0000",
+            quantity: 20,
+        });
+
+        this.time.delayedCall(400, () => particles.destroy());
 
         // Tell server to apply AoE damage
         socket.emit("aoeBlast", { x, y, radius: blastRadius });
     }
+
 
     applyBloodEffect(player, type, playerId) {
         const isLocal = socket.id === playerId;
@@ -936,30 +1040,35 @@ export class Arena1_New_Multi extends Map {
             }
 
             case "Vampire3": {
-                if (this.level <= 4) {
+                console.log(`Vampire3 effect - Current level: ${this.currentLevel}, isLocal: ${isLocal}`);
+
+                if (this.currentLevel <= 0) {
+                    console.log("Applying damage multiplier");
                     player.attackMultiplier = 2;
                     this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
                     this.time.delayedCall(5000, () => {
                         player.attackMultiplier = 1;
                     });
                 } else {
+                    console.log("Applying AoE blast");
                     this.showFloatingText(player.x, player.y, 'Blast!', '#ff4444');
-                    if (isLocal)
-                        this.triggerAoEBlast({ x: player.x, y: player.y }); // ✅ CORRECTED ARGUMENT
-                    else
+                    if (isLocal) {
+                        console.log("Triggering local AoE");
+                        this.triggerAoEBlast({ x: player.x, y: player.y });
+                    } else {
+                        console.log("Spawning visual AoE");
                         this.spawnAoECircle(player.x, player.y);
+                    }
                 }
                 break;
             }
+
+
 
             default:
                 console.warn("Unknown blood crystal type:", type);
         }
     }
-
-
-
-
     showGameOverScreen() {
         const text = this.add.text(
             this.cameras.main.centerX,
