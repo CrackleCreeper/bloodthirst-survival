@@ -264,6 +264,7 @@ export class LobbyScene extends Phaser.Scene {
 
         // Professional hover effects
         container.on("pointerover", () => {
+            this.sound.play("button_hover");
             this.tweens.add({
                 targets: container,
                 scaleX: 1.05,
@@ -306,6 +307,8 @@ export class LobbyScene extends Phaser.Scene {
         });
 
         container.on("pointerdown", () => {
+            this.sound.play("button_click");
+            this.sound.removeByKey("background_music");
             this.tweens.add({
                 targets: container,
                 scaleX: 0.95,

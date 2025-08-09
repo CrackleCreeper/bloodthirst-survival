@@ -30,6 +30,7 @@ export class Arena1_New_Multi extends Map {
 
     create() {
         // Map + tilesets
+        this.sound.stopAll();
         this.gameOverScreenShown = false;
         this.map = this.make.tilemap({ key: this.mapKey });
         const tilesetObjs = this.tilesets.map(ts =>

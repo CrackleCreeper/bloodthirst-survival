@@ -188,6 +188,7 @@ export default class GameOverScene extends Phaser.Scene {
 
         // hover
         container.on("pointerover", () => {
+            this.sound.play("button_hover");
             this.tweens.add({
                 targets: container,
                 scaleX: 1.05,
@@ -238,6 +239,7 @@ export default class GameOverScene extends Phaser.Scene {
         })
 
         container.on("pointerdown", () => {
+            this.sound.play("button_click");
             this.tweens.add({
                 targets: container,
                 scaleX: 0.96,

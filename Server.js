@@ -762,7 +762,7 @@ function generateUniqueEnemyId() {
 }
 
 function getEnemySpawnWeights(level) {
-    if (level <= 2) return { Vampire1: 0, Vampire2: 0, Vampire3: 100 };
+    if (level <= 2) return { Vampire1: 100, Vampire2: 0, Vampire3: 0 };
     if (level <= 4) return { Vampire1: 70, Vampire2: 20, Vampire3: 0 };
     if (level <= 5) return { Vampire1: 40, Vampire2: 50, Vampire3: 10 };
     if (level <= 6) return { Vampire1: 20, Vampire2: 50, Vampire3: 30 };
