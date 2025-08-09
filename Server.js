@@ -1192,6 +1192,6 @@ app.get(/.*/, (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.ht
 
 
 
-server.listen(3000, () => {
+server.listen(443, () => {
     console.log('Multiplayer server running on http://localhost:3000');
 });
