@@ -520,7 +520,9 @@ export class Map extends Phaser.Scene {
         ).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
         this.input.keyboard.once('keydown-ENTER', () => {
-            location.reload(); // Reload the page lmao
+            this.scene.stop();
+            this.cleanupScene()
+            this.scene.start("StartScene");
 
         });
 
@@ -780,6 +782,7 @@ export class Map extends Phaser.Scene {
     }
 
     spawnMysteryCrystal() {
+        if (!this.scene.isActive()) return; // Don't spawn if scene inactive
         const pos = this.getRandomValidTile();
         if (!pos) return;
         const crystal = new MysteryCrystal(this, pos.x, pos.y);

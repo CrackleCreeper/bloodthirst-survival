@@ -2,10 +2,6 @@ import Phaser from "phaser";
 
 export default class MysteryCrystal extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y) {
-        if (!scene || !scene.sys || scene.sys.isDestroyed()) {
-            console.error('Invalid scene when creating MysteryCrystal');
-            return;
-        }
         super(scene, x, y, 'crystal');
         if (scene.add && scene.physics) {
             scene.add.existing(this);
@@ -56,17 +52,14 @@ export default class MysteryCrystal extends Phaser.Physics.Arcade.Sprite {
         });
     }
     updateOverlay() {
-        // ✅ Always validate before accessing
-        if (this.overlay && this.overlay.setPosition && !this.overlay.scene.sys.isDestroyed()) {
-            this.overlay.setPosition(this.x, this.y);
-        }
+        this.overlay.setPosition(this.x, this.y);
     }
 
     preUpdate(time, delta) {
-        if (this.scene && this.scene.sys && !this.scene.sys.isDestroyed()) {
-            super.preUpdate(time, delta);
-            this.updateOverlay();
-        }
+
+        super.preUpdate(time, delta);
+        this.updateOverlay();
+
     }
 
 }

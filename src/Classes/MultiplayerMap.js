@@ -1118,9 +1118,4 @@ export class Arena1_New_Multi extends Map {
         });
 
     }
-    isSceneActive() {
-        return this.scene && this.scene.isActive() && !this.sys.isDestroyed();
-    }
-
-
 }
