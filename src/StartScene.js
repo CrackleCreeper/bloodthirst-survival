@@ -71,8 +71,8 @@ export class StartScene extends Phaser.Scene {
 
         this.createFloatingEmbers();
 
-        this.add.text(this.scale.width / 2, this.scale.height - 30, "WASD TO MOVE  •  SPACE TO ATTACK", {
-            font: "18px Arial",
+        this.add.text(this.scale.width / 2, this.scale.height - 30, "WASD TO MOVE  •  SPACE TO ATTACK  •  P TO SWAP (IN MULTI)", {
+            font: "13px Arial",
             fill: "#cccccc",
             stroke: "#000000",
             strokeThickness: 1

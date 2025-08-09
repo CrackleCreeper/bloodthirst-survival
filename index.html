@@ -1,24 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blame the Weather</title>
+  <title>BloodThirst Survival</title>
   <link rel="stylesheet" href="src/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap"
+    rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
 </head>
+
 <body>
-<div id="overlay">
-  <h1>
-    <img src="assets/sword-icon.png" alt="⚔️" />
-    Blame the Weather
-  </h1>
-  <p>Survive the chaos of public APIs.<br />Press <strong>Enter</strong> to start.</p>
-</div>
-<div id="game-container"></div>
+  <div class="background-effects">
+    <div class="blood-particles"></div>
+    <div class="grid-overlay"></div>
+    <div class="vignette"></div>
+  </div>
 
+  <div id="overlay">
+    <div class="logo-container">
+      <div class="logo-glow"></div>
+      <h1>
+        <img src="assets/sword-icon.png" alt="⚔️" class="sword-icon" />
+        <span class="title-text">
+          <span class="title-main">BLOODTHIRST</span>
+          <span class="title-sub">SURVIVAL</span>
+        </span>
+      </h1>
+    </div>
 
+    <div class="tagline">
+      <p>Enter the arena. Survive the bloodbath.</p>
+    </div>
+
+    <div class="controls-info">
+      <div class="control-item">
+        <span class="key">WASD</span>
+        <span class="action">Move</span>
+      </div>
+      <div class="control-item">
+        <span class="key">SPACE</span>
+        <span class="action">Attack</span>
+      </div>
+      <div class="control-item">
+        <span class="key">P</span>
+        <span class="action">Swap</span>
+      </div>
+    </div>
+
+    <div class="pulse-indicator">
+      <div class="pulse-ring"></div>
+      <div class="pulse-core">Press ENTER</div>
+    </div>
+  </div>
+
+  <div id="game-container"></div>
   <script type="module" src="src/main.js"></script>
-
 </body>
+
 </html>
