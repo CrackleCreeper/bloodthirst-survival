@@ -4,9 +4,10 @@
   "description": "A chaotic multiplayer survival game powered by real-world APIs.",
   "main": "src/main.js",
   "scripts": {
-    "start": "live-server src",
     "dev": "vite",
+    "build": "vite build",
     "server": "nodemon Server.js",
+    "start": "node Server.js",
     "test": "echo \"No tests yet\" && exit 0"
   },
   "author": "Your Name",

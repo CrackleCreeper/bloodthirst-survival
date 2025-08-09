@@ -377,6 +377,7 @@ export class Arena1_New_Multi extends Map {
             if (me.invulnerable) return;
             me.hp = hp;
             me.setTint(0xff0000);
+            this.sound.play('player_hurt', { volume: 0.5 });
             this.hpText.setText(`HP: ${Math.max(0, me.hp)}`);
             me.invulnerable = true;
 
@@ -412,6 +413,7 @@ export class Arena1_New_Multi extends Map {
             this.scene.stop();
             if (!this.gameOverScreenShown) {
                 this.gameOverScreenShown = true;
+                this.sound.play('game_over', { volume: 0.5 });
                 this.scene.start("GameOverScene", {
                     win,
                     loserId, // ✅ Now uses the server-provided win status

@@ -6,16 +6,22 @@ import cors from 'cors';
 import fetch from 'node-fetch'; // ensure this is installed
 import { ServerEnemy } from "./src/Classes/ServerEnemy.js"; // Adjust the import path as necessary
 const TILE_SIZE = 32;
+import { Server as IOServer } from 'socket.io';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
+
+// Allow CORS during development only (optional)
+const io = new IOServer(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: process.env.NODE_ENV === 'development' ? '*' : undefined,
         methods: ["GET", "POST"]
     }
 });
-
-app.use(cors({ origin: 'http://localhost:5173' }));
 
 // State
 const rooms = {};
@@ -1177,9 +1183,12 @@ setInterval(() => {
     });
 }, 100);
 
+// Serve static assets built by Vite into /dist
+const distPath = path.join(__dirname, 'dist');
+app.use(express.static(distPath));
 
-
-
+// SPA fallback — return index.html for any route (so Phaser single-page works)
+app.get(/.*/, (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 
 
