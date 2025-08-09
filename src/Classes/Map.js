@@ -531,7 +531,9 @@ export class Map extends Phaser.Scene {
     cleanupScene() {
         this.ready = false;
         this.levelComplete = false;
-
+        this.elapsedTime = 0;
+        this.levelTime = 30;
+        this.level = 1;
         if (this.spawnLoop) this.spawnLoop.remove();
         if (this.mysteryCrystalLoop) this.mysteryCrystalLoop.remove();
         if (this.enemies) this.enemies.clear(true, true);

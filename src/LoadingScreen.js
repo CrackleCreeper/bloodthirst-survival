@@ -326,11 +326,11 @@ export class LoadingScene extends Phaser.Scene {
         this.load.audio('thunder', 'assets/Audio/Thunder.mp3');
         this.load.audio('vampire_hurt', 'assets/Audio/Vampire_Hurt.mp3');
         this.load.audio('vampire_die', 'assets/Audio/Vampire_Die.wav');
-        this.load.audio('running_on_grass', 'assets/Audio/Running_on_Grass.mp3');
-        this.load.audio('running_on_wet_grass', 'assets/Audio/Running_on_Wet_Grass.mp3');
+        this.load.audio('running_on_grass', 'assets/Audio/Running_On_Grass.mp3');
+        this.load.audio('running_on_wet_grass', 'assets/Audio/Running_On_Wet_Grass.mp3');
         this.load.audio('player_attack', 'assets/Audio/Player_Attack.mp3');
         this.load.audio('player_hurt', 'assets/Audio/Player_Hurt.mp3');
-        this.load.audio('running_on_snow', 'assets/Audio/Running_on_Snow.mp3');
+        this.load.audio('running_on_snow', 'assets/Audio/Running_On_Snow.mp3');
         this.load.audio('snow', 'assets/Audio/Snow.mp3');
         this.load.audio('tp', 'assets/Audio/Teleport.mp3');
     }
