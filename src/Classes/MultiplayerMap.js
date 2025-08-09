@@ -30,6 +30,7 @@ export class Arena1_New_Multi extends Map {
 
     create() {
         // Map + tilesets
+        this.gameOverScreenShown = false;
         this.map = this.make.tilemap({ key: this.mapKey });
         const tilesetObjs = this.tilesets.map(ts =>
             this.map.addTilesetImage(ts.name, ts.imageKey)
@@ -229,6 +230,28 @@ export class Arena1_New_Multi extends Map {
                 p.anims.play(data.isMoving ? `player-run-${data.direction}` : `player-idle-${data.direction}`, true);
         });
 
+        // ✅ Replace the old playerDied handler with this:
+        socket.on("gameResult", ({ win, loserId }) => {
+            const me = this.frontendPlayers[socket.id];
+            if (!me) return;
+
+            if (!win) {
+                // I lost - set my state to dead
+                me.isDead = true;
+                me.setVelocity?.(0, 0);
+                me.disableBody?.(true, true);
+                this.hpText.setText("HP: 0");
+            }
+            console.log(`The roomcode before is`, this.roomCode)
+            this.scene.stop();
+            console.log(`The roomcode after is`, this.roomCode)
+            this.scene.start("GameOverScene", {
+                win,
+                roomCode: this.roomCode,
+                hostId: this.hostId
+            });
+        });
+
         socket.on("removePlayer", (id) => {
             const player = this.frontendPlayers[id];
             if (player) {
@@ -371,22 +394,32 @@ export class Arena1_New_Multi extends Map {
             }
         });
 
-        socket.on("playerDied", ({ loserId }) => {
+        socket.on("playerDied", ({ win, loserId, roomCode }) => {
+            console.log(`[CLIENT] Received playerDied: win=${win}, loserId=${loserId}, myId=${socket.id}`);
+
             const me = this.frontendPlayers[socket.id];
             if (!me) return;
-            me.isDead = true;
-            me.setVelocity?.(0, 0);
-            me.disableBody?.(true, true);
-            this.hpText.setText("HP: 0");
-            socket.emit("playerDied");
-            const win = (loserId !== socket.id);
+
+            if (!win) {
+                // I lost - set my state to dead
+                me.isDead = true;
+                me.setVelocity?.(0, 0);
+                me.disableBody?.(true, true);
+                this.hpText.setText("HP: 0");
+            }
+            console.log(`The roomcode before is`, roomCode)
             this.scene.stop();
-            this.scene.start("GameOverScene", {
-                win,
-                roomCode: this.roomCode, // ← Make sure this is available
-                hostId: this.hostId
-            });
+            if (!this.gameOverScreenShown) {
+                this.gameOverScreenShown = true;
+                this.scene.start("GameOverScene", {
+                    win,
+                    loserId, // ✅ Now uses the server-provided win status
+                    roomCode: roomCode,
+                    hostId: this.hostId
+                });
+            }
         });
+
 
         socket.on("mysteryCrystalSpawn", ({ id, x, y }) => {
             const crystal = new MysteryCrystal(this, x, y);
@@ -914,7 +947,7 @@ export class Arena1_New_Multi extends Map {
             case "Vampire3": {
                 console.log(`Vampire3 visual effect - Current level: ${this.currentLevel}`);
 
-                if (this.currentLevel <= 0) {
+                if (this.currentLevel <= 4) {
                     this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
                     // Optional: Add visual indicator for damage boost
                     player.setTint(0xff2222);
@@ -1042,7 +1075,7 @@ export class Arena1_New_Multi extends Map {
             case "Vampire3": {
                 console.log(`Vampire3 effect - Current level: ${this.currentLevel}, isLocal: ${isLocal}`);
 
-                if (this.currentLevel <= 0) {
+                if (this.currentLevel <= 4) {
                     console.log("Applying damage multiplier");
                     player.attackMultiplier = 2;
                     this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
@@ -1082,5 +1115,9 @@ export class Arena1_New_Multi extends Map {
         });
 
     }
+    isSceneActive() {
+        return this.scene && this.scene.isActive() && !this.sys.isDestroyed();
+    }
+
 
 }

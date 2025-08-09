@@ -244,7 +244,6 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
 
-        // ✅ Use room-specific player
         const player = room.gameState.backendPlayers[socket.id];
         if (player) {
             player.isDead = true;
@@ -266,26 +265,42 @@ io.on('connection', (socket) => {
 
             console.log(`[GAME OVER] Player ${socket.id} died in room ${roomCode}.`);
 
-            // Notify other players in the room
-            socket.to(roomCode).emit("removePlayer", socket.id);
-            io.to(roomCode).emit("playerDied", { loserId: socket.id });
+            // ✅ Send individual victory/defeat messages
+            const otherPlayers = room.players.filter(id => id !== socket.id);
+            console.log(otherPlayers)
+            // Tell the dead player they lost
+            socket.emit("playerDied", { win: false, loserId: socket.id, roomCode });
+
+            // Tell other players they won
+            otherPlayers.forEach(playerId => {
+                io.to(playerId).emit("playerDied", { win: true, loserId: socket.id, roomCode });
+            });
         }
     });
+
 
     socket.on("updatePlayerHP", ({ hp }) => {
         const roomCode = socket.currentRoom;
         const room = rooms[roomCode];
         if (!room) return;
 
-        // ✅ Use room-specific player
         const player = room.gameState.backendPlayers[socket.id];
         if (player) {
             player.hp = hp;
 
             if (hp <= 0) {
                 player.isDead = true;
-                socket.to(roomCode).emit("removePlayer", socket.id);
-                io.to(roomCode).emit("playerDied", { loserId: socket.id });
+
+                // ✅ Send individual results like main playerDied handler
+                const otherPlayers = room.players.filter(id => id !== socket.id);
+
+                // Tell the dead player they lost
+                socket.emit("playerDied", { win: false, loserId: socket.id, roomCode });
+
+                // Tell other players they won
+                otherPlayers.forEach(playerId => {
+                    io.to(playerId).emit("playerDied", { win: true, loserId: socket.id, roomCode });
+                });
             }
         }
     });
@@ -309,7 +324,6 @@ io.on('connection', (socket) => {
 
         const radius = 50;
 
-        // ✅ Use room-specific players
         for (const playerId in room.gameState.backendPlayers) {
             const p = room.gameState.backendPlayers[playerId];
             const dist = Math.hypot(p.x - x, p.y - y);
@@ -318,7 +332,17 @@ io.on('connection', (socket) => {
                 if (p.hp <= 0) {
                     console.log(`Enemy killed a player in room ${roomCode}`);
                     p.isDead = true;
-                    io.to(roomCode).emit("playerDied", { loserId: playerId });
+
+                    // ✅ Send individual results
+                    const otherPlayers = room.players.filter(id => id !== playerId);
+
+                    // Tell the dead player they lost
+                    io.to(playerId).emit("playerDied", { win: false, loserId: playerId, roomCode });
+
+                    // Tell other players they won
+                    otherPlayers.forEach(winnerId => {
+                        io.to(winnerId).emit("playerDied", { win: true, loserId: playerId, roomCode });
+                    });
                 }
             }
         }
@@ -713,7 +737,7 @@ io.on('connection', (socket) => {
                         clearInterval(room.gameState.waveSpawnInterval);
                     }
 
-                    io.to(winner).emit("playerDied", { loserId: socket.id });
+                    io.to(winner).emit("playerDied", { win: true, loserId: socket.id, roomCode });
                     io.to(roomCode).emit('playerLeft', socket.id);
                 } else {
                     io.to(roomCode).emit('playerLeft', socket.id);
@@ -809,7 +833,17 @@ function dynamicEnemySpawn(roomCode) {
             TILE_SIZE,
             {
                 onHit: (playerId, payload) => io.to(playerId).emit("playerHit", payload),
-                onDeath: (playerId) => io.to(roomCode).emit("playerDied", { loserId: playerId })
+                onDeath: (playerId) => {
+                    const otherPlayers = room.players.filter(id => id !== playerId);
+
+                    // Tell the dead player they lost
+                    io.to(playerId).emit("playerDied", { win: false, loserId: playerId, roomCode });
+
+                    // Tell other players they won
+                    otherPlayers.forEach(winnerId => {
+                        io.to(winnerId).emit("playerDied", { win: true, loserId: playerId, roomCode });
+                    });
+                }
             }
         );
 
