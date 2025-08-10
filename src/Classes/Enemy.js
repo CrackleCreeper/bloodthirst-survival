@@ -256,6 +256,13 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const frameRate = 10; // ← adjust based on your animation
         const totalFrames = 11; // frames 0 to 10
         const duration = (totalFrames / frameRate) * 1000;
+        const score = (this.type == "Vampire1") ? 10 : ((this.type == "Vampire2") ? 20 : 30);
+        if (spawnCrystal == true) {
+            this.scene.updateScore(score);
+            this.scene.kills++;
+        }
+
+
         this.scene.time.delayedCall(duration, () => {
 
             let isthereMysteryCrystal = false;

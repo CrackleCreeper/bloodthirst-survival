@@ -16,12 +16,21 @@ const app = express();
 const server = http.createServer(app);
 
 // Allow CORS during development only (optional)
+// const io = new IOServer(server, {
+//     cors: {
+//         origin: process.env.NODE_ENV === 'development' ? '*' : undefined,
+//         methods: ["GET", "POST"]
+//     }
+// });
+
 const io = new IOServer(server, {
     cors: {
-        origin: process.env.NODE_ENV === 'development' ? '*' : undefined,
+        origin: "http://localhost:5173",
         methods: ["GET", "POST"]
     }
 });
+
+app.use(cors({ origin: 'http://localhost:5173' }));
 
 // State
 const rooms = {};
@@ -1183,15 +1192,15 @@ setInterval(() => {
     });
 }, 100);
 
-// Serve static assets built by Vite into /dist
-const distPath = path.join(__dirname, 'dist');
-app.use(express.static(distPath));
+// // Serve static assets built by Vite into /dist
+// const distPath = path.join(__dirname, 'dist');
+// app.use(express.static(distPath));
 
-// SPA fallback — return index.html for any route (so Phaser single-page works)
-app.get(/.*/, (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
+// // SPA fallback — return index.html for any route (so Phaser single-page works)
+// app.get(/.*/, (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 
 
 
-server.listen(13035, () => {
+server.listen(3000, () => {
     console.log('Multiplayer server running on http://localhost:3000');
 });

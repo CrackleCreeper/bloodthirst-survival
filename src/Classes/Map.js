@@ -30,6 +30,17 @@ export class Map extends Phaser.Scene {
         this.elapsedTime = 0;
         this.level = 1;
 
+        // Score System.
+        this.score = 0;
+        this.survivalTime = 0;
+        this.enemiesKilled = 0;
+        this.bloodCrystals1 = 0;
+        this.bloodCrystals2 = 0;
+        this.bloodCrystals3 = 0;
+        this.mysteryBuffs = 0;
+        this.mysteryNerfs = 0;
+        this.weatherCount = 0;
+
     }
 
     preload() {
@@ -44,11 +55,13 @@ export class Map extends Phaser.Scene {
         this.easystar = new EasyStar.js();
         this.easystar.setIterationsPerCalculation(20);
         // Load tilesets
-        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0);
-        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0);
+        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
         this.speedText = this.add.text(10, 30, "", { fontSize: "14px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
         this.currentLevelText = this.add.text(100, 140, `Level: ${this.level}`, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
         this.timerText = this.add.text(100, 110, `Time Left: ${this.levelTime}`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+
+        this.scoreText = this.add.text(100, 170, `Blood Points: 0`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
 
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
@@ -162,6 +175,7 @@ export class Map extends Phaser.Scene {
 
         if (!this.ready) return;
         this.elapsedTime += this.game.loop.delta / 1000;
+        this.survivalTime += this.game.loop.delta / 1000;
         const remaining = Math.max(0, this.levelTime - Math.floor(this.elapsedTime));
         this.timerText.setText(`Time Left: ${remaining}`);
 
@@ -443,6 +457,13 @@ export class Map extends Phaser.Scene {
         }
     }
 
+    updateScore(additionalScore) {
+        console.log("adding score:", additionalScore)
+        this.score += additionalScore;
+        console.log("New Score: ", this.score);
+        this.scoreText.setText(`Blood Points: ${this.score}`);
+    }
+
     nextLevel() {
         if (this.player.currentRunSound) {
             this.sound.stopByKey(this.player.currentRunSound);
@@ -463,6 +484,7 @@ export class Map extends Phaser.Scene {
 
 
         // Show overlay
+        this.updateScore((100 * this.level));
         const levelText = this.add.text(
             this.cameras.main.centerX,
             this.cameras.main.centerY,
@@ -506,25 +528,52 @@ export class Map extends Phaser.Scene {
         // Prevent further updates
         this.levelComplete = true;
         if (this.spawnLoop) this.spawnLoop.remove();
+        this.updateScore(Math.round(this.survivalTime));
+        // const gameOverText = this.add.text(
+        //     this.cameras.main.centerX,
+        //     this.cameras.main.centerY,
+        //     `GAME OVER! Your Score: ${this.score}\nPress ENTER to return to menu.`,
+        //     {
+        //         fontSize: '48px',
+        //         fill: '#ff0000',
+        //         align: 'center',
+        //         wordWrap: { width: this.cameras.main.width * 0.8 }
+        //     }
+        // ).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
-        const gameOverText = this.add.text(
-            this.cameras.main.centerX,
-            this.cameras.main.centerY,
-            `GAME OVER\nPress ENTER to Restart`,
-            {
-                fontSize: '48px',
-                fill: '#ff0000',
-                align: 'center',
-                wordWrap: { width: this.cameras.main.width * 0.8 }
-            }
-        ).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+        // this.input.keyboard.once('keydown-ENTER', () => {
+        //     this.scene.stop();
+        //     this.cleanupScene()
+        //     this.scene.start("StartScene");
 
-        this.input.keyboard.once('keydown-ENTER', () => {
-            this.scene.stop();
-            this.cleanupScene()
-            this.scene.start("StartScene");
+        // });
 
-        });
+        const score = this.score;
+        const timeSurvived = Math.round(this.survivalTime);
+        const level = this.level;
+        const kills = this.enemiesKilled;
+        const bloodCrystals1 = this.bloodCrystals1;
+        const bloodCrystals2 = this.bloodCrystals2;
+        const bloodCrystals3 = this.bloodCrystals3;
+        const mysteryBuffs = this.mysteryBuffs;
+        const mysteryNerfs = this.mysteryNerfs;
+        const weatherCount = this.weatherCount;
+        this.scene.stop();
+        this.physics.world.colliders.destroy();
+        this.cleanupScene();
+        this.scene.start("ScoreOverviewScene", {
+            score,
+            timeSurvived,
+            level,
+            kills,
+            bloodCrystals1,
+            bloodCrystals2,
+            bloodCrystals3,
+            mysteryBuffs,
+            mysteryNerfs,
+            weatherCount
+        })
+
 
     }
 
@@ -532,8 +581,10 @@ export class Map extends Phaser.Scene {
         this.ready = false;
         this.levelComplete = false;
         this.elapsedTime = 0;
+        this.survivalTime = 0;
         this.levelTime = 30;
         this.level = 1;
+        this.score = 0;
         if (this.spawnLoop) this.spawnLoop.remove();
         if (this.mysteryCrystalLoop) this.mysteryCrystalLoop.remove();
         if (this.enemies) this.enemies.clear(true, true);
@@ -579,9 +630,11 @@ export class Map extends Phaser.Scene {
 
         if (crystal.shardType === 'Vampire1') {
             player.hp = Math.min(player.hp + 1, 5); // heal up to max 5 HP
+            this.bloodCrystals1 += 1;
             this.hpText.setText(`HP: ${player.hp}`);
             this.showFloatingText(player.x, player.y, '+1 HP', '#ff3333');
         } else if (crystal.shardType === 'Vampire2') {
+            this.bloodCrystals2 += 1;
             this.player.speed += 100;
             // Change back the speed to normal after 5 seconds
             this.time.delayedCall(10 * 1000, () => {
@@ -589,6 +642,7 @@ export class Map extends Phaser.Scene {
             });
             this.showFloatingText(player.x, player.y, 'Speed Up!', '#ff8800');
         } else if (crystal.shardType === 'Vampire3') {
+            this.bloodCrystals3 += 1;
             if (this.level <= 4) {
                 this.applyAttackBuff();
                 this.showFloatingText(player.x, player.y, 'Damage Up!', '#ff2222');
@@ -615,7 +669,13 @@ export class Map extends Phaser.Scene {
 
         console.log(`Mystery Effect: ${effect}`);
         let text = 'idk';
-
+        if (isPositive) {
+            this.updateScore(15);
+            this.mysteryBuffs += 1;
+        } else {
+            this.updateScore(5);
+            this.mysteryNerfs += 1;
+        }
 
         switch (effect) {
             case 'massiveHeal':

@@ -127,6 +127,7 @@ export class WeatherEffectManager {
 
             // Update weather corner text
             this.scene.weatherText.setText(`Weather: ${description}`);
+            this.scene.weatherCount += 1;
         });
     }
 
