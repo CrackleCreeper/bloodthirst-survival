@@ -144,7 +144,11 @@ export class LobbyScene extends Phaser.Scene {
             this.scale.width / 2 + 250, 165, "📋 COPY", "#33aa33", 100, 40,
             () => {
                 if (this.roomCode) {
-                    navigator.clipboard.writeText(this.roomCode);
+                    navigator.clipboard.writeText(this.roomCode).then(() => {
+                        this.showCopyFeedback();
+                    }).catch(err => {
+                        console.error("Clipboard copy failed", err);
+                    });
                     this.showCopyFeedback();
                 }
             }
