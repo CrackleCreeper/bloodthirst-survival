@@ -63,8 +63,8 @@ BloodThirst Survival is a fast-paced survival arena built with Phaser 3. Fight e
 
 ## Controls
 
-- Movement: WASD or Arrow Keys
-- Attack/Action: Space (or your bound attack)
+- Movement: WASD
+- Attack/Action: Space
 - Swap (Multiplayer): P (if you have swaps)
 - Restart (Game Over): R
 - Main Menu (Game Over): M
