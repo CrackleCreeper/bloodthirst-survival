@@ -6,6 +6,22 @@ Survive the arena. Bend the weather. Outlast your friend.
 
 BloodThirst Survival is a fast-paced survival arena built with Phaser 3. Fight escalating waves of enemies, harvest Blood Crystals for power-ups, risk Mystery Crystals for temporary buffs or nerfs, and adapt to changing weather that affects your gameplay. Play solo or duel a friend online—win by outlasting them.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Try Now](#try-now)
+- [Core Gameplay](#core-gameplay)
+- [Multiplayer Mode](#multiplayer-mode)
+- [Current Features](#current-features)
+- [Planned--future-features](#planned--future-features)
+- [Controls](#controls)
+- [Tech Stack](#tech-stack)
+- [Setup-local-development](#setup-local-development)
+- [Production-build--run-single-process](#production-build--run-single-process)
+- [How to Play (Quick)](#how-to-play-quick)
+- [Deployment](#deployment)
+- [Credits](#credits)
+
 ## Try Now
 
 - Jump into the arena: http://digi.wisp.uno:13035/
