@@ -47,7 +47,6 @@ BloodThirst Survival is a fast-paced survival arena built with Phaser 3. Fight e
 - Dynamic weather system with gameplay effects
 - Room code-based multiplayer with ready-up
 - GameOver flow with restart synchronization
-- Polished UI/UX in Game Over screen (animated titles, buttons, particles)
 - Safe scene/lifecycle handling to prevent socket/memory leaks
 
 
@@ -124,17 +123,15 @@ This will:
 - Start: `npm start`
 
 
-## License
-
-Add your chosen license.
-
-## Contributing
-
-PRs and suggestions welcome.
-
 ## Credits
 
 - Phaser community and docs
+- Player Sprite : https://xzany.itch.io/top-down-adventurer-character
+- Map: https://cainos.itch.io/pixel-art-top-down-basic
+- Enemies: https://free-game-assets.itch.io/free-vampire-4-direction-pixel-character-sprite-pack
+- Map Editor: https://thorbjorn.itch.io/tiled
+- Sound Effects from: https://www.zapsplat.com/ , https://pixabay.com/ , https://mixkit.co/ , https://mixkit.co/ 
+
 
 ***
 
