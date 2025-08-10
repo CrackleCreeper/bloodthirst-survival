@@ -80,6 +80,7 @@ export class WeatherEffectManager {
 
             // Update permanent corner text
             this.scene.weatherText.setText(`Weather: ${description}`);
+            // this.scene.drawHudPanel();
         });
     }
 
@@ -127,6 +128,7 @@ export class WeatherEffectManager {
 
             // Update weather corner text
             this.scene.weatherText.setText(`Weather: ${description}`);
+            // this.scene.drawHudPanel();
             this.scene.weatherCount += 1;
         });
     }

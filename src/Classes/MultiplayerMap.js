@@ -68,16 +68,37 @@ export class Arena1_New_Multi extends Map {
         this.canAttack = true;
 
         // Simple UI
-        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px Arial", fill: "#fff" })
-            .setScrollFactor(0)
-            .setDepth(999);
-        this.currentLevelText = this.add.text(100, 140, `Level: 1`, { fontSize: '16px Arial', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-        this.timerText = this.add.text(100, 110, `Time Left: 30`, { fontSize: '16px Arial', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px Arial', fill: '#fff' }).setScrollFactor(0);
-        this.swapText = this.add.text(100, 170, "Swap Count: 0", {
-            font: "16px Arial",
-            fill: "#fff"
-        });
+        const HUD_BASE = {
+            fontFamily: 'Verdana, Arial, sans-serif',
+            fontSize: '14px',
+            color: '#FFFFFF',
+            stroke: '#0A0A0A',
+            strokeThickness: 3,
+            shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 6, stroke: true, fill: true },
+            padding: { x: 10, y: 6 }
+        };
+
+        const hudLeft = 100; // left padding from screen edge
+        let hudY = 60;
+
+        const hudItems = []; // store references to measure bounds later
+        this.hudItems = hudItems;
+
+        this.weatherText = this.add.text(hudLeft, hudY, ``, { ...HUD_BASE, fontSize: '14px', color: '#B8E1FF' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.weatherText); hudY += 24;
+
+        this.hpText = this.add.text(hudLeft, hudY, "HP: 5", { ...HUD_BASE, fontSize: '14px', color: '#FF6B6B' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.hpText); hudY += 26;
+
+        this.currentLevelText = this.add.text(hudLeft, hudY, `Level: ${this.level}`, { ...HUD_BASE, color: '#4ECDC4' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.currentLevelText); hudY += 24;
+
+        this.timerText = this.add.text(hudLeft, hudY, `Time Left: ${this.levelTime}`, { ...HUD_BASE, fontSize: '14px', color: '#FFD166' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.timerText); hudY += 26;
+
+        this.scoreText = this.add.text(hudLeft, hudY, `Blood Points: 0`, { ...HUD_BASE, color: '#C77DFF' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.scoreText); hudY += 24;
+        this.swapText = this.add.text(hudLeft, hudY, "Swap Count: 0", { ...HUD_BASE, color: '#4be180ff' }).setDepth(1001); hudItems.push(this.swapText); hudY += 24;
         this.swapText.setScrollFactor(0);
 
         this.gameOver = false;
@@ -529,15 +550,7 @@ export class Arena1_New_Multi extends Map {
         });
 
         socket.on("levelComplete", ({ currentLevel }) => {
-            const text = this.add.text(
-                this.cameras.main.centerX,
-                this.cameras.main.centerY,
-                `LEVEL ${currentLevel - 1} COMPLETE!\nNext level starting soon...`,
-                { fontSize: '32px', fill: '#ff0', align: 'center' }
-            )
-                .setOrigin(0.5)
-                .setScrollFactor(0)
-                .setDepth(999);
+            const text = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, `LEVEL ${this.level} COMPLETE!\nNext Level starts in a few seconds.`, { fontFamily: 'Verdana, Arial, sans-serif', fontSize: '36px', color: '#FFF7AE', align: 'center', stroke: '#1A1A1A', strokeThickness: 4, shadow: { offsetX: 0, offsetY: 3, color: '#000000', blur: 10, stroke: true, fill: true }, padding: { x: 20, y: 16 }, wordWrap: { width: this.cameras.main.width * 0.8 } }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
             this.time.delayedCall(8000, () => text.destroy());
         });

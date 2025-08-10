@@ -46,22 +46,83 @@ export class Map extends Phaser.Scene {
     preload() {
     }
 
+    drawHudPanel() {
+        // Compute union bounds of all hudItems
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        this.hudItems.forEach(t => {
+            const b = t.getBounds();
+            minX = Math.min(minX, b.x);
+            minY = Math.min(minY, b.y);
+            maxX = Math.max(maxX, b.right);
+            maxY = Math.max(maxY, b.bottom);
+        });
+
+        // Add padding around texts
+        const padX = 12, padY = 10, radius = 10;
+        const x = minX - padX;
+        const y = minY - padY;
+        const w = (maxX - minX) + padX * 2;
+        const h = (maxY - minY) + padY * 2;
+
+        // Redraw panel
+        this.hudBg.clear();
+        // Soft shadow layer
+        this.hudBg.fillStyle(0x000000, 0.35);
+        this.hudBg.fillRoundedRect(x + 2, y + 4, w, h, radius + 6);
+        // Main panel
+        this.hudBg.fillStyle(0x000000, 0.35); // adjust alpha for darker/lighter look
+        this.hudBg.fillRoundedRect(x, y, w, h, radius);
+        // Optional subtle border
+        this.hudBg.lineStyle(1, 0xffffff, 0.08);
+        this.hudBg.strokeRoundedRect(x, y, w, h, radius);
+    };
 
 
     async create() {
-
         const map = this.make.tilemap({ key: this.mapKey });
         this.map = map;
         this.easystar = new EasyStar.js();
         this.easystar.setIterationsPerCalculation(20);
         // Load tilesets
-        this.weatherText = this.add.text(100, 50, ``, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-        this.hpText = this.add.text(100, 80, "HP: 5", { fontSize: "16px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
-        this.speedText = this.add.text(10, 30, "", { fontSize: "14px", fill: "#fff" }).setScrollFactor(0).setDepth(999);
-        this.currentLevelText = this.add.text(100, 140, `Level: ${this.level}`, { fontSize: '14px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
-        this.timerText = this.add.text(100, 110, `Time Left: ${this.levelTime}`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        const HUD_BASE = {
+            fontFamily: 'Verdana, Arial, sans-serif',
+            fontSize: '14px',
+            color: '#FFFFFF',
+            stroke: '#0A0A0A',
+            strokeThickness: 3,
+            shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 6, stroke: true, fill: true },
+            padding: { x: 10, y: 6 }
+        };
 
-        this.scoreText = this.add.text(100, 170, `Blood Points: 0`, { fontSize: '18px', fill: '#fff' }).setScrollFactor(0).setDepth(999);
+        const hudLeft = 100; // left padding from screen edge
+        let hudY = 60;
+
+        const hudItems = []; // store references to measure bounds later
+        this.hudItems = hudItems;
+
+        this.weatherText = this.add.text(hudLeft, hudY, ``, { ...HUD_BASE, fontSize: '14px', color: '#B8E1FF' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.weatherText); hudY += 24;
+
+        this.hpText = this.add.text(hudLeft, hudY, "HP: 5", { ...HUD_BASE, fontSize: '14px', color: '#FF6B6B' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.hpText); hudY += 26;
+
+        this.currentLevelText = this.add.text(hudLeft, hudY, `Level: ${this.level}`, { ...HUD_BASE, color: '#4ECDC4' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.currentLevelText); hudY += 24;
+
+        this.timerText = this.add.text(hudLeft, hudY, `Time Left: ${this.levelTime}`, { ...HUD_BASE, fontSize: '14px', color: '#FFD166' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.timerText); hudY += 26;
+
+        this.scoreText = this.add.text(hudLeft, hudY, `Blood Points: 0`, { ...HUD_BASE, color: '#C77DFF' })
+            .setScrollFactor(0).setDepth(1001); hudItems.push(this.scoreText); hudY += 24;
+
+        if (!this.hudBg) {
+            this.hudBg = this.add.graphics().setScrollFactor(0).setDepth(1000);
+        }
+
+
+
+        // Draw once after creating the items
+        // this.drawHudPanel();
 
         const tilesetObjs = this.tilesets.map(ts => map.addTilesetImage(ts.name, ts.imageKey));
         this.apiManager = new ApiManager(this);
@@ -92,7 +153,6 @@ export class Map extends Phaser.Scene {
 
         this.hpText.setDepth(999);
         this.weatherText.setDepth(999);
-        this.speedText.setDepth(999);
 
         // Crystals
         this.crystals = this.physics.add.group();
@@ -485,20 +545,7 @@ export class Map extends Phaser.Scene {
 
         // Show overlay
         this.updateScore((100 * this.level));
-        const levelText = this.add.text(
-            this.cameras.main.centerX,
-            this.cameras.main.centerY,
-            `LEVEL ${this.level} COMPLETE!\nNext Level starts in a few seconds.`,
-            {
-                fontSize: '32px',
-                fill: '#ff0',
-                align: 'center',
-                wordWrap: { width: this.cameras.main.width * 0.8 }
-            }
-        )
-            .setOrigin(0.5)
-            .setScrollFactor(0)
-            .setDepth(999);
+        const levelText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, `LEVEL ${this.level} COMPLETE!\nNext Level starts in a few seconds.`, { fontFamily: 'Verdana, Arial, sans-serif', fontSize: '36px', color: '#FFF7AE', align: 'center', stroke: '#1A1A1A', strokeThickness: 4, shadow: { offsetX: 0, offsetY: 3, color: '#000000', blur: 10, stroke: true, fill: true }, padding: { x: 20, y: 16 }, wordWrap: { width: this.cameras.main.width * 0.8 } }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
 
 
@@ -829,18 +876,9 @@ export class Map extends Phaser.Scene {
     }
 
     showFloatingText(x, y, text, color = '#ffffff') {
-        const txt = this.add.text(x, y - 20, text, {
-            font: '16px Arial',
-            fill: color
-        }).setDepth(999);
+        const txt = this.add.text(x, y - 20, text, { fontFamily: 'Verdana, Arial, sans-serif', fontSize: '14px', color, stroke: '#0A0A0A', strokeThickness: 3, shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 6, stroke: true, fill: true } }).setDepth(999);
 
-        this.tweens.add({
-            targets: txt,
-            y: y - 60,
-            alpha: 0,
-            duration: 1000,
-            onComplete: () => txt.destroy()
-        });
+        this.tweens.add({ targets: txt, y: y - 60, alpha: 0, duration: 1000, ease: 'Quad.easeOut', onComplete: () => txt.destroy() });
     }
 
     spawnMysteryCrystal() {
