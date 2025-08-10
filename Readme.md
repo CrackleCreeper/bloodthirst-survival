@@ -6,6 +6,11 @@ Survive the arena. Bend the weather. Outlast your friend.
 
 BloodThirst Survival is a fast-paced survival arena built with Phaser 3. Fight escalating waves of enemies, harvest Blood Crystals for power-ups, risk Mystery Crystals for temporary buffs or nerfs, and adapt to changing weather that affects your gameplay. Play solo or duel a friend online—win by outlasting them.
 
+## Try Now
+
+- Jump into the arena: http://digi.wisp.uno:13035/
+- Heads up: This is a lightweight deployment—hosted on a low end server.  For the best experience, you can also run locally (see Setup).
+
 ## Core Gameplay
 
 - Survival loop
