@@ -259,7 +259,7 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
         const score = (this.type == "Vampire1") ? 10 : ((this.type == "Vampire2") ? 20 : 30);
         if (spawnCrystal == true) {
             this.scene.updateScore(score);
-            this.scene.kills++;
+            this.scene.enemiesKilled++;
         }
 
 
