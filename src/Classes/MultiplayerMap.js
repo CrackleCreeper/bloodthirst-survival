@@ -550,7 +550,7 @@ export class Arena1_New_Multi extends Map {
         });
 
         socket.on("levelComplete", ({ currentLevel }) => {
-            const text = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, `LEVEL ${this.level} COMPLETE!\nNext Level starts in a few seconds.`, { fontFamily: 'Verdana, Arial, sans-serif', fontSize: '36px', color: '#FFF7AE', align: 'center', stroke: '#1A1A1A', strokeThickness: 4, shadow: { offsetX: 0, offsetY: 3, color: '#000000', blur: 10, stroke: true, fill: true }, padding: { x: 20, y: 16 }, wordWrap: { width: this.cameras.main.width * 0.8 } }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+            const text = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY, `LEVEL ${currentLevel - 1} COMPLETE!\nNext Level starts in a few seconds.`, { fontFamily: 'Verdana, Arial, sans-serif', fontSize: '36px', color: '#FFF7AE', align: 'center', stroke: '#1A1A1A', strokeThickness: 4, shadow: { offsetX: 0, offsetY: 3, color: '#000000', blur: 10, stroke: true, fill: true }, padding: { x: 20, y: 16 }, wordWrap: { width: this.cameras.main.width * 0.8 } }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
             this.time.delayedCall(8000, () => text.destroy());
         });
